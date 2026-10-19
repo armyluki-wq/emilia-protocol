@@ -416,7 +416,7 @@ test('the braces acceptance still matches the tree it was argued against', () =>
     .filter(([, entry]) => entry.dependencies?.micromatch !== undefined)
     .map(([path]) => path)
     .sort();
-  assert.deepEqual(micromatchDependents, ['node_modules/@expo/metro-file-map', 'node_modules/metro-file-map']);
+  assert.deepEqual(micromatchDependents, ['node_modules/metro-file-map']);
 
   const sources = ['App.tsx', 'index.ts', ...readdirSync(join(SECURE_APP, 'lib'))
     .filter((name) => /\.(?:ts|tsx|js|mjs)$/.test(name) && !name.endsWith('.test.mjs'))
