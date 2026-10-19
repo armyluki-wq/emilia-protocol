@@ -507,11 +507,11 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "0fe3f22f92496a107c6baa5f124615347a094a9d2c06a4d0411ea35bdfad0191"
+      "sha256": "2677c46ba54536b400b0195c3e7464cbe94708a77022ed045213348f5151eef7"
     },
     {
       "path": "package.json",
-      "sha256": "056f4ce43888ac71eb0553b5b64e3b9a1f2023a7c1c174bed4084d4aee7a93da"
+      "sha256": "431ee4cc01c06e861b88fdb45fc3383c4b77c0b254c59a6b770dfd50dfef16a5"
     },
     {
       "path": "packages/gate/aec-execution.js",
