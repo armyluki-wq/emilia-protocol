@@ -13,7 +13,9 @@ import path from 'node:path';
 import {
   ORCAROUTER_MAX_CATALOG_ITEMS,
   discoverOrcaRouterModels,
+  modelMatches,
   resetOrcaRouterCatalogCache,
+  seedModels,
 } from '../lib/providers/orcarouter.js';
 
 const envWithKey = {
@@ -22,6 +24,7 @@ const envWithKey = {
   apiBaseOverride: null,
   sharedBaseOverride: null,
   modelOverride: null,
+  embeddingModelOverride: null,
   stateDir: null,
   settingsSurfaceEnabled: false,
 };
@@ -223,5 +226,55 @@ describe('OrcaRouter catalog fixtures', () => {
     });
     expect(catalog.error).toBe('catalog_timeout');
     expect(catalog.models.length).toBeGreaterThan(0);
+  });
+
+  it('caches the complete catalog, not a modality-filtered slice', async () => {
+    const dir = stateDir();
+    const impl = vi.fn(liveFetch());
+
+    // First request asks for image-capable chat only.
+    const image = await discoverOrcaRouterModels({
+      env: envWithKey, credential, modality: 'image', fetchImpl: impl as any, stateDir: dir, useCache: true,
+    });
+    expect(image.models.map((entry) => entry.id)).toEqual(['acme/vision-chat']);
+
+    // The persisted catalog must still hold every chat model.
+    const persisted = JSON.parse(fs.readFileSync(path.join(dir, 'catalog-chat.json'), 'utf8'));
+    expect(persisted.models.map((entry: any) => entry.id)).toEqual([
+      'acme/text-chat',
+      'acme/vision-chat',
+      'acme/no-modalities-chat',
+    ]);
+
+    // A subsequent unfiltered request is served from cache and sees them all.
+    const text = await discoverOrcaRouterModels({
+      env: envWithKey, credential, modality: 'text', fetchImpl: impl as any, stateDir: dir, useCache: true,
+    });
+    expect(text.models.map((entry) => entry.id)).toEqual([
+      'acme/text-chat',
+      'acme/vision-chat',
+      'acme/no-modalities-chat',
+    ]);
+    expect(impl).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps every capability seed compatible with its own filter', () => {
+    for (const capability of ['chat', 'embedding', 'image', 'video'] as const) {
+      const seeds = seedModels(capability);
+      expect(seeds.length).toBeGreaterThan(0);
+      expect(seeds.every((model) => modelMatches(model, capability))).toBe(true);
+    }
+  });
+
+  it('serves a non-empty, filter-compatible seed when discovery fails', async () => {
+    for (const capability of ['chat', 'embedding', 'image', 'video'] as const) {
+      resetOrcaRouterCatalogCache();
+      const catalog = await discoverOrcaRouterModels({
+        env: envWithKey, credential, capability, fetchImpl: failFetch(), stateDir: stateDir(), useCache: false,
+      });
+      expect(catalog.source).toBe('seed');
+      expect(catalog.models.length).toBeGreaterThan(0);
+      expect(catalog.models.every((model) => modelMatches(model, capability))).toBe(true);
+    }
   });
 });

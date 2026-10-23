@@ -17,10 +17,11 @@
 
 import { getOpenAIKey } from '@/lib/env';
 import { logger } from '../logger.js';
-import { resolveOrcaRouterOrigins } from './orcarouter.js';
-import { resolveOrcaRouterCredential } from './orcarouter-credentials.js';
-
-const ORCAROUTER_DEFAULT_EMBEDDING_MODEL = 'openai/text-embedding-3-small';
+import { ORCAROUTER_DEFAULT_EMBEDDING_MODEL, resolveOrcaRouterOrigins } from './orcarouter.js';
+import {
+  getOrcaRouterModelFor,
+  resolveOrcaRouterCredential,
+} from './orcarouter-credentials.js';
 
 /**
  * Generate an embedding vector for the given text.
@@ -36,6 +37,10 @@ export async function generateEmbedding(text) {
   if (orcarouter.ok) {
     try {
       const origins = resolveOrcaRouterOrigins();
+      // The embedding model comes from the embedding selection saved through
+      // the settings surface (or the embedding-specific environment override /
+      // default). A chat selection is never reused here.
+      const model = (await getOrcaRouterModelFor('embedding')) || ORCAROUTER_DEFAULT_EMBEDDING_MODEL;
       const res = await fetch(`${origins.api}/embeddings`, {
         method: 'POST',
         headers: {
@@ -43,7 +48,7 @@ export async function generateEmbedding(text) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: process.env.TRUST_DESK_ORCAROUTER_EMBEDDING_MODEL || ORCAROUTER_DEFAULT_EMBEDDING_MODEL,
+          model,
           input: text,
         }),
         redirect: 'error',

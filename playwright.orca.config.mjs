@@ -10,6 +10,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
+// The settings surface requires a signed internal administrator session. These
+// are throw-away automation identities, not deployment secrets; a real
+// verification environment may override them.
+process.env.TRUST_DESK_SESSION_SECRET ||= 'orca-evidence-session-secret-0123456789abcdef';
+process.env.TRUST_DESK_REVIEWER_ID ||= 'orca-evidence-admin';
+
 const PORT = Number(process.env.ORCA_EVIDENCE_PORT || 3107);
 const chromium = ['/usr/bin/chromium', '/usr/bin/chromium-browser'].find((candidate) => fs.existsSync(candidate));
 

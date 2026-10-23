@@ -14,14 +14,14 @@ import { epProblem } from '@/lib/errors';
 import { getOrcaRouterEnv } from '@/lib/env';
 import { resolveOrcaRouterOrigins } from '@/lib/providers/orcarouter';
 import { startOrcaRouterAuthorization } from '@/lib/providers/orcarouter-pkce';
-import { NO_STORE, crossOriginRefused, providerAdminDisabled } from '../../_shared';
+import { NO_STORE, crossOriginRefused, requireOrcaRouterAdmin } from '../../_shared';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const disabled = providerAdminDisabled();
-  if (disabled) return disabled;
+  const guard = requireOrcaRouterAdmin(request);
+  if (!guard.ok) return guard.response;
   const crossOrigin = crossOriginRefused(request);
   if (crossOrigin) return crossOrigin;
 
@@ -30,6 +30,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const started = await startOrcaRouterAuthorization({
       origins,
       appName: 'EMILIA Protocol',
+      principalId: guard.admin.reviewerId,
     });
     return NextResponse.json(started, { status: 201, headers: NO_STORE });
   } catch (error: any) {

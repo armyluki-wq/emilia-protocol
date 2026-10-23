@@ -33,6 +33,8 @@ export const ORCAROUTER_DEFAULT_API_ORIGIN = 'https://api.orcarouter.ai/v1';
 
 /** Default model. Any OrcaRouter key can route it. */
 export const ORCAROUTER_DEFAULT_MODEL = 'orcarouter/auto';
+/** Default embedding model when the operator has not selected one. */
+export const ORCAROUTER_DEFAULT_EMBEDDING_MODEL = 'openai/text-embedding-3-small';
 /** General fallback when a task is not cyber-specific. */
 export const ORCAROUTER_FALLBACK_MODEL = 'orcarouter/fusion';
 /** Dedicated cyber models for verified security teams (business verification). */
@@ -153,8 +155,33 @@ function seedModel(
   };
 }
 
+/**
+ * A seed entry must survive the same capability filter as a live entry.
+ * Endpoint and output metadata therefore come from the capability, not from
+ * the chat-shaped defaults seedModel() uses. Without this, embedding, image,
+ * and video seeds were removed by their own filter and the fallback was empty.
+ */
+const SEED_ENDPOINTS: Record<OrcaRoutCapability, string[]> = {
+  chat: ['openai'],
+  embedding: ['embeddings'],
+  image: ['image-generation'],
+  video: ['openai-video'],
+  rerank: ['jina-rerank'],
+};
+const SEED_OUTPUT_MODALITIES: Record<OrcaRoutCapability, string[]> = {
+  chat: ['text'],
+  embedding: ['embedding'],
+  image: ['image'],
+  video: ['video'],
+  rerank: ['text'],
+};
+
 for (const capability of Object.keys(SEED) as OrcaRoutCapability[]) {
-  for (const model of SEED[capability]) model.capability = capability;
+  for (const model of SEED[capability]) {
+    model.capability = capability;
+    model.endpoint_types = [...SEED_ENDPOINTS[capability]];
+    model.output_modalities = [...SEED_OUTPUT_MODALITIES[capability]];
+  }
 }
 
 export function seedModels(capability: OrcaRoutCapability): OrcaRouterModel[] {
@@ -464,18 +491,22 @@ export async function discoverOrcaRouterModels(options: DiscoverOptions = {}): P
     }
     const data = Array.isArray(payload?.data) ? payload.data : null;
     if (!data) return degraded('catalog_malformed');
-    const models = dedupe(
+    // The cache and the last-known-good file hold the COMPLETE catalog for the
+    // capability, never a per-request modality slice: an image-filtered request
+    // must not hide text-only models from the next unfiltered request. Filtering
+    // happens on the way out, every time.
+    const complete = dedupe(
       data
         .slice(0, ORCAROUTER_MAX_CATALOG_ITEMS)
         .map((item: any) => normalizeModel(item, capability))
         .filter((model: OrcaRouterModel | null): model is OrcaRouterModel =>
-          model !== null && modelMatches(model, capability, options.modality)),
+          model !== null && modelMatches(model, capability)),
     );
-    if (!models.length) return degraded('catalog_empty');
-    memoryCache.set(capability, { at: Date.now(), models });
-    if (options.useCache !== false) writeLastKnownGood(stateDir, capability, models);
+    if (!complete.length) return degraded('catalog_empty');
+    memoryCache.set(capability, { at: Date.now(), models: complete });
+    if (options.useCache !== false) writeLastKnownGood(stateDir, capability, complete);
     return {
-      models,
+      models: complete.filter((model) => modelMatches(model, capability, options.modality)),
       capability,
       source: 'live',
       degraded: false,

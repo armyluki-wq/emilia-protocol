@@ -19,8 +19,8 @@ import {
   completeOrcaRouterAuthorization,
   OrcaRouterPkceError,
 } from '@/lib/providers/orcarouter-pkce';
-import { ORCAROUTER_MASKED_KEY, saveOrcaRouterPkceKey } from '@/lib/providers/orcarouter-credentials';
-import { NO_STORE, crossOriginRefused, providerAdminDisabled, readJsonBody } from '../../_shared';
+import { ORCAROUTER_MASKED_KEY, saveOrcaRouterPkceKeyIfCurrent } from '@/lib/providers/orcarouter-credentials';
+import { NO_STORE, crossOriginRefused, readJsonBody, requireOrcaRouterAdmin } from '../../_shared';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -32,6 +32,9 @@ const STATUS_BY_CODE: Record<string, number> = {
   state_mismatch: 400,
   code_rejected: 403,
   scope_not_granted: 403,
+  wrong_principal: 403,
+  superseded: 409,
+  cancelled: 409,
   rate_limited: 429,
   network_error: 502,
   server_error: 502,
@@ -39,8 +42,8 @@ const STATUS_BY_CODE: Record<string, number> = {
 };
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const disabled = providerAdminDisabled();
-  if (disabled) return disabled;
+  const guard = requireOrcaRouterAdmin(request);
+  if (!guard.ok) return guard.response;
   const crossOrigin = crossOriginRefused(request);
   if (crossOrigin) return crossOrigin;
 
@@ -60,8 +63,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       attemptId,
       code,
       state: typeof state === 'string' ? state : null,
-      save: async (key, scope) => {
-        const status = await saveOrcaRouterPkceKey(key, scope);
+      principalId: guard.admin.reviewerId,
+      save: async (key, scope, expectedGeneration) => {
+        // Fenced against the generation captured when this administrator
+        // started the attempt. The check and the write are synchronous.
+        const status = saveOrcaRouterPkceKeyIfCurrent(key, scope, expectedGeneration);
         return {
           masked: status.masked ?? ORCAROUTER_MASKED_KEY,
           generation: status.generation || '',

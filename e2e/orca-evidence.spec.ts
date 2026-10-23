@@ -35,6 +35,24 @@ test.afterAll(() => {
   }
 });
 
+function signSession(): string {
+  const secret = process.env.TRUST_DESK_SESSION_SECRET;
+  const reviewerId = process.env.TRUST_DESK_REVIEWER_ID;
+  if (!secret || !reviewerId) {
+    throw new Error('TRUST_DESK_SESSION_SECRET and TRUST_DESK_REVIEWER_ID must be set for the evidence run');
+  }
+  const now = Math.floor(Date.now() / 1000);
+  const payload = Buffer.from(JSON.stringify({
+    purpose: 'trust-desk-reviewer',
+    iat: now,
+    exp: now + 3600,
+    nonce: crypto.randomBytes(24).toString('base64url'),
+    reviewer_id: reviewerId,
+  }), 'utf8').toString('base64url');
+  const mac = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+  return `tds1.${payload}.${mac}`;
+}
+
 function sha256(file: string): string {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
@@ -46,8 +64,18 @@ function alphaOf(color: string): number {
   return parts.length === 4 ? parts[3] : 1;
 }
 
-test('OrcaRouter Cyber Inference provider shows both auth methods and a catalog dropdown', async ({ page }) => {
+test('OrcaRouter Cyber Inference provider shows both auth methods and a catalog dropdown', async ({ page, context }) => {
   fs.mkdirSync(evidenceDir, { recursive: true });
+
+  // The surface only renders for an authenticated internal administrator.
+  await context.addCookies([{
+    name: 'td_internal',
+    value: signSession(),
+    domain: '127.0.0.1',
+    path: '/',
+    httpOnly: true,
+    sameSite: 'Lax',
+  }]);
 
   await page.goto('/internal/trust-desk/providers');
   await expect(page.getByRole('heading', { level: 1, name: 'Model providers' })).toBeVisible();

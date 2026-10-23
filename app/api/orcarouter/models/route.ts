@@ -20,7 +20,7 @@ import {
   type OrcaRoutCapability,
 } from '@/lib/providers/orcarouter';
 import { resolveOrcaRouterCredential } from '@/lib/providers/orcarouter-credentials';
-import { NO_STORE, providerAdminDisabled } from '../_shared';
+import { NO_STORE, requireOrcaRouterAdmin } from '../_shared';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -29,8 +29,8 @@ const CAPABILITIES: OrcaRoutCapability[] = ['chat', 'embedding', 'image', 'video
 const MODALITIES: OrcaInputModality[] = ['text', 'image', 'audio', 'video', 'file'];
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const disabled = providerAdminDisabled();
-  if (disabled) return disabled;
+  const guard = requireOrcaRouterAdmin(request);
+  if (!guard.ok) return guard.response;
 
   const params = request.nextUrl.searchParams;
   const capability = (params.get('capability') || 'chat') as OrcaRoutCapability;

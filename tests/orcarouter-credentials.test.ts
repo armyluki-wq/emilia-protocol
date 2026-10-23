@@ -13,6 +13,9 @@ import {
   ORCAROUTER_MASKED_KEY,
   clearOrcaRouterCredential,
   getOrcaRouterModel,
+  getOrcaRouterModelFor,
+  getOrcaRouterModelSelection,
+  orcaRouterCredentialFence,
   hasOrcaRouterCredential,
   looksLikeOrcaRouterKey,
   markOrcaRouterNeedsReauth,
@@ -20,7 +23,9 @@ import {
   resolveOrcaRouterCredential,
   saveOrcaRouterApiKey,
   saveOrcaRouterPkceKey,
+  saveOrcaRouterPkceKeyIfCurrent,
   setOrcaRouterModel,
+  setOrcaRouterModelFor,
 } from '../lib/providers/orcarouter-credentials.js';
 
 const KEY = 'sk-orca-abcdef1234567890';
@@ -31,6 +36,7 @@ beforeEach(() => {
   stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orca-credentials-'));
   vi.stubEnv('ORCAROUTER_API_KEY', '');
   vi.stubEnv('TRUST_DESK_ORCAROUTER_MODEL', '');
+  vi.stubEnv('TRUST_DESK_ORCAROUTER_EMBEDDING_MODEL', '');
   vi.stubEnv('ORCAROUTER_STATE_DIR', '');
 });
 
@@ -165,9 +171,67 @@ describe('OrcaRouter credential store', () => {
       expect(fs.statSync(path.join(stateDir, 'settings.json')).mode & 0o777).toBe(0o600);
     });
 
+
+    it('stores chat and embedding selections independently', async () => {
+      await setOrcaRouterModelFor('chat', 'orcarouter/auto', stateDir);
+      await setOrcaRouterModelFor('embedding', 'openai/text-embedding-3-small', stateDir);
+
+      expect(await getOrcaRouterModelSelection('chat', stateDir)).toBe('orcarouter/auto');
+      expect(await getOrcaRouterModelSelection('embedding', stateDir)).toBe('openai/text-embedding-3-small');
+      expect(await getOrcaRouterModelFor('embedding', stateDir)).toBe('openai/text-embedding-3-small');
+
+      // Changing the chat model must not move the embedding selection.
+      await setOrcaRouterModelFor('chat', 'orcacyber-ultra-1.0', stateDir);
+      expect(await getOrcaRouterModelFor('chat', stateDir)).toBe('orcacyber-ultra-1.0');
+      expect(await getOrcaRouterModelFor('embedding', stateDir)).toBe('openai/text-embedding-3-small');
+    });
+
+    it('defaults embeddings separately from chat and honours the embedding override', async () => {
+      expect(await getOrcaRouterModelFor('embedding', stateDir)).toBe('openai/text-embedding-3-small');
+      vi.stubEnv('TRUST_DESK_ORCAROUTER_EMBEDDING_MODEL', 'acme/embed-large');
+      expect(await getOrcaRouterModelFor('embedding', stateDir)).toBe('acme/embed-large');
+      // The chat default is unaffected by the embedding override.
+      expect(await getOrcaRouterModelFor('chat', stateDir)).toBe('orcarouter/auto');
+    });
+
+    it('reads a legacy single-model settings file as the chat selection only', async () => {
+      fs.writeFileSync(path.join(stateDir, 'settings.json'), JSON.stringify({ model: 'orcacyber-zero-1.5' }));
+      expect(await getOrcaRouterModelSelection('chat', stateDir)).toBe('orcacyber-zero-1.5');
+      expect(await getOrcaRouterModelSelection('embedding', stateDir)).toBeNull();
+    });
+
+    it('rejects an unknown capability', async () => {
+      await expect(setOrcaRouterModelFor('telepathy' as any, 'orcarouter/auto', stateDir))
+        .rejects.toThrow('invalid_capability');
+    });
+
     it('rejects a malformed model id', async () => {
       await expect(setOrcaRouterModel('bad model with spaces', stateDir)).rejects.toThrow('invalid_model_id');
       await expect(setOrcaRouterModel('', stateDir)).rejects.toThrow('invalid_model_id');
+    });
+  });
+
+  describe('credential write fence', () => {
+    it('refuses a PKCE write when a newer credential was stored meanwhile', async () => {
+      const fenceAtStart = orcaRouterCredentialFence(stateDir);
+      expect(fenceAtStart).toBe('none');
+
+      const newer = await saveOrcaRouterApiKey(KEY, stateDir);
+      expect(() => saveOrcaRouterPkceKeyIfCurrent(KEY, 'api', fenceAtStart, stateDir))
+        .toThrow('credential_superseded');
+
+      const current = await resolveOrcaRouterCredential(stateDir);
+      expect(current).toMatchObject({ ok: true, source: 'api_key', generation: newer.generation });
+    });
+
+    it('writes when the fence still matches and then advances it', async () => {
+      const fenceAtStart = orcaRouterCredentialFence(stateDir);
+      const saved = saveOrcaRouterPkceKeyIfCurrent(KEY, 'api', fenceAtStart, stateDir);
+      expect(saved.source).toBe('pkce');
+      expect(saved.generation).not.toBe(fenceAtStart);
+      // The same attempt cannot be replayed against the new generation.
+      expect(() => saveOrcaRouterPkceKeyIfCurrent(KEY, 'api', fenceAtStart, stateDir))
+        .toThrow('credential_superseded');
     });
   });
 });

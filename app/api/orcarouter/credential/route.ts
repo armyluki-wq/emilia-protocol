@@ -19,14 +19,14 @@ import {
   orcaRouterCredentialStatus,
   saveOrcaRouterApiKey,
 } from '@/lib/providers/orcarouter-credentials';
-import { NO_STORE, crossOriginRefused, providerAdminDisabled, readJsonBody } from '../_shared';
+import { NO_STORE, crossOriginRefused, readJsonBody, requireOrcaRouterAdmin } from '../_shared';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const disabled = providerAdminDisabled();
-  if (disabled) return disabled;
+  const guard = requireOrcaRouterAdmin(request);
+  if (!guard.ok) return guard.response;
   const crossOrigin = crossOriginRefused(request);
   if (crossOrigin) return crossOrigin;
 
@@ -45,8 +45,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 export async function DELETE(request: NextRequest): Promise<NextResponse> {
-  const disabled = providerAdminDisabled();
-  if (disabled) return disabled;
+  const guard = requireOrcaRouterAdmin(request);
+  if (!guard.ok) return guard.response;
   const crossOrigin = crossOriginRefused(request);
   if (crossOrigin) return crossOrigin;
 
@@ -58,8 +58,8 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-export async function GET(): Promise<NextResponse> {
-  const disabled = providerAdminDisabled();
-  if (disabled) return disabled;
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const guard = requireOrcaRouterAdmin(request);
+  if (!guard.ok) return guard.response;
   return NextResponse.json({ credential: await orcaRouterCredentialStatus() }, { headers: NO_STORE });
 }

@@ -581,6 +581,7 @@ export function getOrcaRouterEnv(): {
   apiBaseOverride: string | null;
   sharedBaseOverride: string | null;
   modelOverride: string | null;
+  embeddingModelOverride: string | null;
   stateDir: string | null;
   settingsSurfaceEnabled: boolean;
 } {
@@ -590,6 +591,7 @@ export function getOrcaRouterEnv(): {
     apiBaseOverride: process.env.ORCAROUTER_API_BASE_URL || process.env.ORCA_API_BASE_URL || null,
     sharedBaseOverride: process.env.ORCA_BASE_URL || null,
     modelOverride: process.env.TRUST_DESK_ORCAROUTER_MODEL || null,
+    embeddingModelOverride: process.env.TRUST_DESK_ORCAROUTER_EMBEDDING_MODEL || null,
     stateDir: process.env.ORCAROUTER_STATE_DIR || null,
     settingsSurfaceEnabled: ['1', 'true', 'enabled'].includes(
       String(process.env.ORCAROUTER_PROVIDER_ADMIN || '').toLowerCase(),

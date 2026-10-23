@@ -101,7 +101,7 @@ describe('OrcaRouter PKCE adapter', () => {
   });
 
   it('authorizes against the auth origin and never puts the verifier in the URL', async () => {
-    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, stateDir });
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
     expect(started.delivery).toBe('oob');
     expect(started.scope).toBe('api');
     expect(started.auth_origin).toBe(origin);
@@ -131,7 +131,7 @@ describe('OrcaRouter PKCE adapter', () => {
 
   it('exchanges the code at /api/v1/auth/keys on the auth origin', async () => {
     save.mockClear();
-    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, stateDir });
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
     const pending = readPending(started.attempt_id);
 
     const completed = await completeOrcaRouterAuthorization({
@@ -139,6 +139,7 @@ describe('OrcaRouter PKCE adapter', () => {
       attemptId: started.attempt_id,
       code: '  displayed-code  ',
       state: pending.state,
+      principalId: 'admin-a',
       stateDir,
       save,
     });
@@ -152,20 +153,21 @@ describe('OrcaRouter PKCE adapter', () => {
     expect(recorded[0].body).not.toHaveProperty('client_secret');
     expect(recorded[0].body).not.toHaveProperty('redirect_uri');
 
-    expect(save).toHaveBeenCalledWith(KEY, 'api');
+    expect(save).toHaveBeenCalledWith(KEY, 'api', expect.any(String));
     expect(completed).toEqual({ source: 'pkce', masked: 'sk-orca-…', scope: 'api', generation: 'gen-1' });
     expect(pendingOrcaRouterAuthorizations(stateDir)).toBe(0);
   });
 
   it('consumes the attempt before exchanging, so a replay cannot mint a second key', async () => {
     save.mockClear();
-    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, stateDir });
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
     const pending = readPending(started.attempt_id);
     await completeOrcaRouterAuthorization({
       origins: { auth: origin, api: 'https://api.example.test/v1' },
       attemptId: started.attempt_id,
       code: 'code',
       state: pending.state,
+      principalId: 'admin-a',
       stateDir,
       save,
     });
@@ -175,6 +177,7 @@ describe('OrcaRouter PKCE adapter', () => {
       attemptId: started.attempt_id,
       code: 'code',
       state: pending.state,
+      principalId: 'admin-a',
       stateDir,
       save,
     })).rejects.toMatchObject({ code: 'unknown_attempt' });
@@ -184,12 +187,13 @@ describe('OrcaRouter PKCE adapter', () => {
 
   it('rejects a state mismatch and burns the attempt', async () => {
     save.mockClear();
-    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, stateDir });
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
     await expect(completeOrcaRouterAuthorization({
       origins: { auth: origin, api: 'https://api.example.test/v1' },
       attemptId: started.attempt_id,
       code: 'code',
       state: 'attacker-state',
+      principalId: 'admin-a',
       stateDir,
       save,
     })).rejects.toMatchObject({ code: 'state_mismatch' });
@@ -199,7 +203,7 @@ describe('OrcaRouter PKCE adapter', () => {
   });
 
   it('rejects an expired attempt before contacting the service', async () => {
-    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, stateDir });
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
     const pending = readPending(started.attempt_id);
     fs.writeFileSync(pendingPath(started.attempt_id), JSON.stringify({
       ...pending,
@@ -210,6 +214,7 @@ describe('OrcaRouter PKCE adapter', () => {
       origins: { auth: origin, api: 'https://api.example.test/v1' },
       attemptId: started.attempt_id,
       code: 'code',
+      principalId: 'admin-a',
       stateDir,
       save,
     })).rejects.toMatchObject({ code: 'expired' });
@@ -225,7 +230,7 @@ describe('OrcaRouter PKCE adapter', () => {
       [500, 'server_error'],
     ];
     for (const [status, code] of cases) {
-      const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, stateDir });
+      const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
       respond = (_req, res) => {
         res.writeHead(status, { 'content-type': 'text/plain' });
         res.end('denied');
@@ -234,6 +239,7 @@ describe('OrcaRouter PKCE adapter', () => {
         origins: { auth: origin, api: 'https://api.example.test/v1' },
         attemptId: started.attempt_id,
         code: 'code',
+        principalId: 'admin-a',
         stateDir,
         save,
       })).rejects.toMatchObject({ code });
@@ -244,13 +250,14 @@ describe('OrcaRouter PKCE adapter', () => {
   });
 
   it('reports a network failure as network_error', async () => {
-    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, stateDir });
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
     const deadOrigin = origin;
     await new Promise<void>((resolve) => server.close(() => resolve()));
     await expect(completeOrcaRouterAuthorization({
       origins: { auth: deadOrigin, api: 'https://api.example.test/v1' },
       attemptId: started.attempt_id,
       code: 'code',
+      principalId: 'admin-a',
       stateDir,
       save,
     })).rejects.toMatchObject({ code: 'network_error' });
@@ -265,11 +272,12 @@ describe('OrcaRouter PKCE adapter', () => {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ key: KEY, scope: 'read' }));
     };
-    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, stateDir });
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
     await expect(completeOrcaRouterAuthorization({
       origins: { auth: origin, api: 'https://api.example.test/v1' },
       attemptId: started.attempt_id,
       code: 'code',
+      principalId: 'admin-a',
       stateDir,
       save,
     })).rejects.toMatchObject({ code: 'scope_not_granted' });
@@ -282,11 +290,12 @@ describe('OrcaRouter PKCE adapter', () => {
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(JSON.stringify(payload));
       };
-      const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, stateDir });
+      const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
       await expect(completeOrcaRouterAuthorization({
         origins: { auth: origin, api: 'https://api.example.test/v1' },
         attemptId: started.attempt_id,
         code: 'code',
+        principalId: 'admin-a',
         stateDir,
         save,
       })).rejects.toBeInstanceOf(OrcaRouterPkceError);
@@ -296,22 +305,24 @@ describe('OrcaRouter PKCE adapter', () => {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end('not json');
     };
-    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, stateDir });
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
     await expect(completeOrcaRouterAuthorization({
       origins: { auth: origin, api: 'https://api.example.test/v1' },
       attemptId: started.attempt_id,
       code: 'code',
+      principalId: 'admin-a',
       stateDir,
       save,
     })).rejects.toMatchObject({ code: 'invalid_grant_response' });
   });
 
   it('requires a non-empty displayed code before consuming the attempt', async () => {
-    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, stateDir });
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
     await expect(completeOrcaRouterAuthorization({
       origins: { auth: origin, api: 'https://api.example.test/v1' },
       attemptId: started.attempt_id,
       code: '   ',
+      principalId: 'admin-a',
       stateDir,
       save,
     })).rejects.toMatchObject({ code: 'invalid_request' });
@@ -319,18 +330,109 @@ describe('OrcaRouter PKCE adapter', () => {
   });
 
   it('cancels idempotently and refuses malformed attempt ids', async () => {
-    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, stateDir });
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
     expect(pendingOrcaRouterAuthorizations(stateDir)).toBe(1);
-    cancelOrcaRouterAuthorization(started.attempt_id, stateDir);
-    cancelOrcaRouterAuthorization(started.attempt_id, stateDir);
+    cancelOrcaRouterAuthorization(started.attempt_id, 'admin-a', stateDir);
+    cancelOrcaRouterAuthorization(started.attempt_id, 'admin-a', stateDir);
     expect(pendingOrcaRouterAuthorizations(stateDir)).toBe(0);
-    expect(() => cancelOrcaRouterAuthorization('../../etc/passwd', stateDir)).not.toThrow();
+    expect(() => cancelOrcaRouterAuthorization('../../etc/passwd', 'admin-a', stateDir)).not.toThrow();
     await expect(completeOrcaRouterAuthorization({
       origins: { auth: origin, api: 'https://api.example.test/v1' },
       attemptId: '../../etc/passwd',
       code: 'code',
+      principalId: 'admin-a',
       stateDir,
       save,
     })).rejects.toMatchObject({ code: 'invalid_request' });
+  });
+
+  it('binds a pending attempt to the administrator that started it', async () => {
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
+    const pending = readPending(started.attempt_id);
+
+    await expect(completeOrcaRouterAuthorization({
+      origins: { auth: origin, api: 'https://api.example.test/v1' },
+      attemptId: started.attempt_id,
+      code: 'code',
+      state: pending.state,
+      principalId: 'admin-b',
+      stateDir,
+      save,
+    })).rejects.toMatchObject({ code: 'wrong_principal' });
+
+    // The rightful owner can still finish it; the failed attempt did not burn it.
+    expect(pendingOrcaRouterAuthorizations(stateDir)).toBe(1);
+    await expect(completeOrcaRouterAuthorization({
+      origins: { auth: origin, api: 'https://api.example.test/v1' },
+      attemptId: started.attempt_id,
+      code: 'code',
+      state: pending.state,
+      principalId: 'admin-a',
+      stateDir,
+      save,
+    })).resolves.toMatchObject({ source: 'pkce' });
+  });
+
+  it('passes the start-time credential fence to the save and reports supersession', async () => {
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
+    const pending = readPending(started.attempt_id);
+    const rejecting = vi.fn(async () => {
+      throw new Error('credential_superseded');
+    });
+
+    await expect(completeOrcaRouterAuthorization({
+      origins: { auth: origin, api: 'https://api.example.test/v1' },
+      attemptId: started.attempt_id,
+      code: 'code',
+      state: pending.state,
+      principalId: 'admin-a',
+      stateDir,
+      save: rejecting,
+    })).rejects.toMatchObject({ code: 'superseded' });
+    expect(rejecting).toHaveBeenCalledWith(KEY, 'api', pending.credential_generation);
+  });
+
+  it('refuses cancellation by another administrator', async () => {
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
+    expect(() => cancelOrcaRouterAuthorization(started.attempt_id, 'admin-b', stateDir))
+      .toThrow(/another administrator/);
+    expect(pendingOrcaRouterAuthorizations(stateDir)).toBe(1);
+    expect(cancelOrcaRouterAuthorization(started.attempt_id, 'admin-a', stateDir)).toBe(true);
+    expect(pendingOrcaRouterAuthorizations(stateDir)).toBe(0);
+  });
+
+  it('refuses to save when the attempt is cancelled during the exchange', async () => {
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
+    const pending = readPending(started.attempt_id);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const delayedFetch = (async () => {
+      await gate;
+      return new Response(JSON.stringify({ key: KEY, scope: 'api' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as any;
+    const saving = vi.fn(async () => ({ masked: 'sk-orca-…', generation: 'gen-1' }));
+
+    const completion = completeOrcaRouterAuthorization({
+      origins: { auth: origin, api: 'https://api.example.test/v1' },
+      attemptId: started.attempt_id,
+      code: 'displayed-code',
+      state: pending.state,
+      principalId: 'admin-a',
+      fetchImpl: delayedFetch,
+      stateDir,
+      save: saving,
+    });
+
+    // The attempt is consumed and the exchange is in flight; cancel now.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(cancelOrcaRouterAuthorization(started.attempt_id, 'admin-a', stateDir)).toBe(true);
+    release();
+
+    await expect(completion).rejects.toMatchObject({ code: 'cancelled' });
+    expect(saving).not.toHaveBeenCalled();
+    expect(pendingOrcaRouterAuthorizations(stateDir)).toBe(0);
   });
 });

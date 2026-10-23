@@ -42,7 +42,7 @@ type Status = {
   display_name: string;
   credential: Credential;
   origins: { auth: string; api: string };
-  models: { default: string; cyber: string[]; fallback: string; selected: string };
+  models: { default: string; cyber: string[]; fallback: string; selected: string; selections?: Record<string, string | null> };
   catalog_source: string;
   docs: { provider_page: string; cyber_models: string };
 };
@@ -376,10 +376,17 @@ export default function OrcaRouterProvidersPanel(): React.ReactElement {
       const res = await fetch('/api/orcarouter/preferences', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ model: model.id }),
+        body: JSON.stringify({ capability, model: model.id }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.detail || 'Could not save the model selection.');
+      setStatus((current) => current ? {
+        ...current,
+        models: {
+          ...current.models,
+          selections: { ...(current.models.selections || {}), [capability]: model.id },
+        },
+      } : current);
       setNotice(`Model set to ${model.id}.`);
     } catch (err: any) {
       setSelectedModel(previous);
@@ -548,6 +555,9 @@ export default function OrcaRouterProvidersPanel(): React.ReactElement {
                 onChange={(event) => {
                   const next = event.target.value as 'chat' | 'embedding';
                   setCapability(next);
+                  // Each capability keeps its own saved selection; never carry a
+                  // chat model into the embedding selector or vice versa.
+                  setSelectedModel(status?.models.selections?.[next] || '');
                   if (next !== 'chat') setRequiresImage(false);
                   loadCatalog(next, next === 'chat' ? requiresImage : false, true);
                 }}

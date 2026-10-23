@@ -105,17 +105,30 @@ Capability filters:
 - **Embeddings, image generation, video, rerank** each require their exact
   endpoint (`embeddings`, `image-generation`, `openai-video`, `jina-rerank`).
 
+The process cache and the last-known-good file hold the **complete** catalog for
+a capability, never a per-request modality slice: an image-filtered request must
+not hide text-only models from the next unfiltered request. Filtering is applied
+on the way out, every time.
+
+Selections are stored **per capability** (`chat`, `embedding`, …), so choosing a
+chat model never changes the embedding model. The embeddings adapter reads the
+embedding selection; a legacy single-model settings file is read as the chat
+selection.
+
 If live discovery fails, the selector uses this deployment's last-known-good
-catalog, then a small verified seed, marked degraded. A successful live response
-is never merged with either fallback. Changing capability or modality recomputes
-the list and clears a selection that no longer satisfies the filters.
+catalog, then a small verified seed, marked degraded. Seed entries carry the
+endpoint and output metadata of their own capability, so each survives the same
+filter as a live entry. A successful live response is never merged with either
+fallback. Changing capability or modality recomputes the list and clears a
+selection that no longer satisfies the filters.
 
 ## Configuration
 
 | Variable | Purpose |
 | --- | --- |
 | `ORCAROUTER_API_KEY` | Unattended API key (`sk-orca-…`). Never committed. |
-| `ORCAROUTER_PROVIDER_ADMIN` | `1`/`true`/`enabled` exposes the internal settings surface. |
+| `ORCAROUTER_PROVIDER_ADMIN` | `1`/`true`/`enabled` exposes the internal settings surface (a feature flag, not an identity). |
+| `TRUST_DESK_SESSION_SECRET` / `TRUST_DESK_REVIEWER_ID` | Signed internal administrator session required by every settings route and the page. |
 | `TRUST_DESK_ORCAROUTER_MODEL` | Model override when no explicit selection is stored. |
 | `TRUST_DESK_ORCAROUTER_EMBEDDING_MODEL` | Embedding model (default `openai/text-embedding-3-small`). |
 | `ORCAROUTER_AUTH_BASE_URL` / `ORCAROUTER_API_BASE_URL` / `ORCA_BASE_URL` | Origin overrides. |
@@ -133,11 +146,18 @@ the list and clears a selection that no longer satisfies the filters.
 | `/api/orcarouter/connect/start` | POST | Begin a PKCE attempt. |
 | `/api/orcarouter/connect/complete` | POST | Exchange the displayed code. |
 | `/api/orcarouter/connect/cancel` | POST | Release a pending attempt. |
-| `/api/orcarouter/preferences` | GET / POST | Read or persist the model selection. |
+| `/api/orcarouter/preferences` | GET / POST | Read or persist the model selection for one capability. |
 
-All routes require `ORCAROUTER_PROVIDER_ADMIN`, reject cross-origin mutations,
-and return `Cache-Control: no-store`. The settings surface never exposes a key:
-only `sk-orca-…` status is returned.
+Every route authenticates an internal administrator session
+(`TRUST_DESK_SESSION_SECRET` + `TRUST_DESK_REVIEWER_ID`) and returns
+`Cache-Control: no-store`; `ORCAROUTER_PROVIDER_ADMIN` only decides whether the
+surface exists. Mutations require an explicit same-origin `Origin` header, and
+PKCE attempts are bound to the administrator that started them, so completion
+and cancellation by another principal are refused. The PKCE write is fenced
+against the credential generation captured at start: if the credential was
+cancelled or replaced while the exchange was in flight, the older approval is
+discarded instead of overwriting the newer key. The settings surface never
+exposes a key: only `sk-orca-…` status is returned.
 
 ## Verification
 
