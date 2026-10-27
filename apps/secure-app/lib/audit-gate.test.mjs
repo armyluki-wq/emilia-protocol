@@ -32,24 +32,7 @@ const GATE = join(REPO_ROOT, 'scripts/audit-with-exceptions.mjs');
 const ICNS = 'https://github.com/advisories/GHSA-w3rx-r6r6-pgpr';
 const OTHER = 'https://github.com/advisories/GHSA-0000-0000-0000';
 const NODE_FORGE = 'https://github.com/advisories/GHSA-86w9-cpqp-85rv';
-const BRACES = 'https://github.com/advisories/GHSA-vfj7-8cjw-p6xm';
-const SOURCE_MAP = 'https://github.com/advisories/GHSA-68fv-2mgg-jv7q';
-const BRACES_AFFECTED = [
-  '@expo/cli',
-  '@expo/metro',
-  '@expo/metro-config',
-  '@expo/metro-file-map',
-  '@react-native/community-cli-plugin',
-  '@react-native/virtualized-lists',
-  'braces',
-  'expo',
-  'metro',
-  'metro-config',
-  'metro-file-map',
-  'metro-transform-worker',
-  'micromatch',
-  'react-native',
-];
+const ZOD = 'https://github.com/advisories/GHSA-mrhx-c7xc-m3w5';
 
 const NOW = Date.parse('2026-09-01T00:00:00Z');
 
@@ -356,10 +339,10 @@ test('the committed exception file satisfies the enforced schema', () => {
   const exceptions = loadExceptions(join(SECURE_APP, 'audit-exceptions.json'));
   assert.deepEqual(
     exceptions.map((exception) => exception.advisory),
-    [NODE_FORGE, BRACES, SOURCE_MAP],
+    [NODE_FORGE, ZOD],
     'only the reviewed tooling advisories may be accepted',
   );
-  const [nodeForge, braces, sourceMap] = exceptions;
+  const [nodeForge, zod] = exceptions;
   assert.equal(nodeForge.package, 'node-forge');
   assert.equal(nodeForge.severity, 'high');
   assert.deepEqual(
@@ -368,16 +351,11 @@ test('the committed exception file satisfies the enforced schema', () => {
   );
   assert.equal(nodeForge.acceptedOnText, '2026-10-02');
   assert.equal(nodeForge.expiresOnText, '2026-10-30');
-  assert.equal(braces.package, 'braces');
-  assert.equal(braces.severity, 'high');
-  assert.deepEqual([...braces.affectedPackages].sort(), BRACES_AFFECTED);
-  assert.equal(braces.acceptedOnText, '2026-10-04');
-  assert.equal(braces.expiresOnText, '2026-12-01');
-  assert.equal(sourceMap.package, 'source-map-js');
-  assert.equal(sourceMap.severity, 'high');
-  assert.deepEqual([...sourceMap.affectedPackages], ['source-map-js']);
-  assert.equal(sourceMap.acceptedOnText, '2026-10-06');
-  assert.equal(sourceMap.expiresOnText, '2026-10-08');
+  assert.equal(zod.package, 'zod');
+  assert.equal(zod.severity, 'high');
+  assert.deepEqual([...zod.affectedPackages].sort(), ['@expo/cli', 'expo', 'zod']);
+  assert.equal(zod.acceptedOnText, '2026-10-26');
+  assert.equal(zod.expiresOnText, '2026-11-16');
   for (const exception of exceptions) {
     assert.ok(exception.expiresOn > exception.acceptedOn);
     assert.ok(exception.affectedPackages.size > 0);
@@ -404,56 +382,31 @@ test('the node-forge acceptance still matches the app it was argued against', ()
   }
 });
 
-test('the braces acceptance still matches the tree it was argued against', () => {
-  // The exception says braces is reached only through Metro's file watchers,
-  // which expand globs built from local configuration. Fail here, before
-  // expiry, if a second copy appears, if a new package starts importing
-  // micromatch or braces, or if app source imports any of the chain.
+test('the zod acceptance still matches the tree it was argued against', () => {
+  // The exception says zod is reached only through @expo/cli. Fail here,
+  // before expiry, if another package starts depending on it or app source
+  // imports it.
   const lockfile = JSON.parse(readFileSync(join(SECURE_APP, 'package-lock.json'), 'utf8'));
-  const bracesCopies = Object.keys(lockfile.packages).filter((path) => /(?:^|\/)node_modules\/braces$/.test(path));
-  assert.deepEqual(bracesCopies, ['node_modules/braces']);
-  assert.equal(lockfile.packages['node_modules/braces'].version, '3.0.3');
-  const bracesDependents = Object.entries(lockfile.packages)
-    .filter(([, entry]) => entry.dependencies?.braces !== undefined)
-    .map(([path]) => path);
-  assert.deepEqual(bracesDependents, ['node_modules/micromatch']);
-  const micromatchDependents = Object.entries(lockfile.packages)
-    .filter(([, entry]) => entry.dependencies?.micromatch !== undefined)
+  const copies = Object.keys(lockfile.packages).filter((path) => /(?:^|\/)node_modules\/zod$/.test(path));
+  assert.deepEqual(copies, ['node_modules/zod']);
+  assert.equal(lockfile.packages['node_modules/zod'].version, '3.25.76');
+  const dependents = Object.entries(lockfile.packages)
+    .filter(([, entry]) => entry.dependencies?.zod !== undefined)
     .map(([path]) => path)
     .sort();
-  assert.deepEqual(micromatchDependents, ['node_modules/@expo/metro-file-map', 'node_modules/metro-file-map']);
+  assert.deepEqual(dependents, ['node_modules/expo/node_modules/@expo/cli']);
 
   const sources = ['App.tsx', 'index.ts', ...readdirSync(join(SECURE_APP, 'lib'))
     .filter((name) => /\.(?:ts|tsx|js|mjs)$/.test(name) && !name.endsWith('.test.mjs'))
     .map((name) => join('lib', name))];
   for (const source of sources) {
-    const text = readFileSync(join(SECURE_APP, source), 'utf8');
-    assert.doesNotMatch(text, /['"](?:braces|micromatch|metro-file-map|@expo\/metro-file-map)['"]/, source);
+    assert.doesNotMatch(readFileSync(join(SECURE_APP, source), 'utf8'), /['"]zod['"]/, source);
   }
 });
 
-test('the source-map acceptance stays pinned to the quarantined build-only copy', () => {
+test('source-map-js is pinned to the patched release', () => {
   const lockfile = JSON.parse(readFileSync(join(SECURE_APP, 'package-lock.json'), 'utf8'));
-  const copies = Object.keys(lockfile.packages)
-    .filter((path) => /(?:^|\/)node_modules\/source-map-js$/.test(path));
-  assert.deepEqual(copies, ['node_modules/source-map-js']);
-  assert.equal(lockfile.packages['node_modules/source-map-js'].version, '1.2.1');
-  assert.equal(
-    lockfile.packages['node_modules/source-map-js'].integrity,
-    'sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==',
-  );
-  const dependents = Object.entries(lockfile.packages)
-    .filter(([, entry]) => entry.dependencies?.['source-map-js'] !== undefined)
-    .map(([path]) => path)
-    .sort();
-  assert.deepEqual(dependents, ['node_modules/postcss']);
-
-  const sources = ['App.tsx', 'index.ts', ...readdirSync(join(SECURE_APP, 'lib'))
-    .filter((name) => /\.(?:ts|tsx|js|mjs)$/.test(name) && !name.endsWith('.test.mjs'))
-    .map((name) => join('lib', name))];
-  for (const source of sources) {
-    assert.doesNotMatch(readFileSync(join(SECURE_APP, source), 'utf8'), /['"]source-map-js['"]/, source);
-  }
+  assert.equal(lockfile.packages['node_modules/source-map-js'].version, '1.2.2');
 });
 
 test('the committed exceptions still fail on any other live advisory', () => {
@@ -481,8 +434,8 @@ test('the gate passes against the real dependency tree', () => {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   assert.match(stdout, /AUDIT GATE PASS/);
-  assert.match(stdout, /3 accepted advisory\(ies\)/);
-  for (const advisory of [NODE_FORGE, BRACES, SOURCE_MAP]) {
+  assert.match(stdout, /2 accepted advisory\(ies\)/);
+  for (const advisory of [NODE_FORGE, ZOD]) {
     assert.ok(
       stdout.split(/\r?\n/).some((line) => line.trim() === advisory),
       `${advisory} must appear as an exact output line`,

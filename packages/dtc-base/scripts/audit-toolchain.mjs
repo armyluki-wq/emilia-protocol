@@ -7,53 +7,55 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
-// GHSA-ch52-4w7c-c8xp / CVE-2026-93748: http-cache-semantics through 4.2.0
-// lets a client max-stale directive override shared-cache reuse prohibitions,
-// so a shared cache can hand one user's zeroed Set-Cookie response to another.
+// GHSA-mrhx-c7xc-m3w5: zod below 4.6.6 can exhaust memory while validating
+// oversized constrained collections. The advisory range includes all of zod 3,
+// and Hardhat 3 still depends on zod 3.25.76 (hardhat, hardhat-mocha and
+// hardhat-ethers each resolve to that one lockfile copy). There is no
+// release of that dependency line outside the range, and the packages npm
+// offers as a fix are a semver-major downgrade of the network-helpers plugin.
 //
-// Reachability (reviewed 2026-10-04): the only copy is development-only:
-//   solhint 6.2.4 -> latest-version 7.0.0 -> package-json 8.1.1 -> got 12.6.1
-//     -> cacheable-request 10.2.14 -> http-cache-semantics 4.2.0
-// solhint uses latest-version only to look up its own newest release on the
-// npm registry (lib/cli/terminal-output.js). package-json calls got without a
-// `cache` option, and got routes through cacheable-request only when one is
-// set, so the cache-policy code is never executed. Even if it were, it would
-// be a private in-process cache in a single-user lint run; the disclosure
-// needs a shared cache serving several users. The deployed contracts and the
-// receipt-program bridge do not depend on it, and audit:prod stays clean.
+// Reachability (reviewed 2026-10-26): the lockfile marks the zod copy and all
+// of its dependents development-only, and `npm run audit:prod` stays clean, so
+// zod is not part of the shipped contracts or the receipt-program bridge. The
+// exposure is a memory-exhausting input to a local Hardhat compile or test run.
 //
-// Upstream fixed it in http-cache-semantics 4.3.0 (issue #56 closed), which
-// is outside the advisory range and inside cacheable-request's ^4.1.1 range,
-// but 4.3.0 was published 2026-10-04T02:56Z and this package's
-// min-release-age=7 refuses it until 2026-10-11. The lock is not refreshed
-// around that quarantine.
-//
-// Recheck: once 4.3.0 clears the quarantine, run
-// `npm update http-cache-semantics --package-lock-only --ignore-scripts`,
-// confirm `npm ls http-cache-semantics --all` shows 4.3.0 or later, delete
-// this exception, and refresh the artifact manifest. The exception fails the
-// gate on HTTP_CACHE_SEMANTICS_RECHECK_BY even if nobody has acted.
-const HTTP_CACHE_SEMANTICS_ADVISORY = 'https://github.com/advisories/GHSA-ch52-4w7c-c8xp';
-const HTTP_CACHE_SEMANTICS_RECHECK_BY = '2026-10-18';
+// Recheck: when Hardhat ships a release on zod 4.6.6 or later, bump hardhat,
+// confirm `npm ls zod --all` shows no copy below 4.6.6, delete this exception,
+// and refresh the artifact manifest. The exception fails the gate on
+// ZOD_RECHECK_BY even if nobody has acted.
+const ZOD_ADVISORY = 'https://github.com/advisories/GHSA-mrhx-c7xc-m3w5';
+const ZOD_RECHECK_BY = '2026-11-16';
 
-const ALLOWED_HIGH_ADVISORIES = new Set([HTTP_CACHE_SEMANTICS_ADVISORY]);
+const ALLOWED_HIGH_ADVISORIES = new Set([ZOD_ADVISORY]);
 
 // The exact packages npm may report through each accepted advisory, and the
 // exact dev-only lockfile copies and direct dependents the review covered. A
 // new copy, a new consumer, or a production edge means the reachability review
 // above no longer describes the tree.
 const REVIEWED_AFFECTED_PACKAGES = new Map([
-  [HTTP_CACHE_SEMANTICS_ADVISORY, ['http-cache-semantics']],
+  [ZOD_ADVISORY, [
+    '@nomicfoundation/hardhat-ethers',
+    '@nomicfoundation/hardhat-ethers-chai-matchers',
+    '@nomicfoundation/hardhat-mocha',
+    '@nomicfoundation/hardhat-network-helpers',
+    '@nomicfoundation/hardhat-zod-utils',
+    'hardhat',
+    'zod',
+  ]],
 ]);
 const REVIEWED_LOCK_COPIES = new Map([
-  [HTTP_CACHE_SEMANTICS_ADVISORY, {
-    name: 'http-cache-semantics',
-    copies: ['node_modules/http-cache-semantics'],
-    dependents: ['node_modules/cacheable-request'],
+  [ZOD_ADVISORY, {
+    name: 'zod',
+    copies: ['node_modules/zod'],
+    dependents: [
+      'node_modules/@nomicfoundation/hardhat-ethers',
+      'node_modules/@nomicfoundation/hardhat-mocha',
+      'node_modules/hardhat',
+    ],
   }],
 ]);
 const RECHECK_BY = new Map([
-  [HTTP_CACHE_SEMANTICS_ADVISORY, HTTP_CACHE_SEMANTICS_RECHECK_BY],
+  [ZOD_ADVISORY, ZOD_RECHECK_BY],
 ]);
 
 let report;

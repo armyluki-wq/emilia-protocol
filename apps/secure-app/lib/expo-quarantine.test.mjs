@@ -15,11 +15,8 @@ const inputs = () => ({
   exceptions: read('expo-quarantine-exceptions.json'),
 });
 
-test('the committed Expo graph holds only patches still inside the seven-day quarantine', () => {
-  assert.deepEqual(
-    verifyExpoQuarantine({ ...inputs(), now: new Date('2026-10-06T16:30:00Z') }),
-    ['expo', 'expo-asset', 'expo-screen-capture'],
-  );
+test('the committed Expo graph holds no quarantine exceptions', () => {
+  assert.deepEqual(verifyExpoQuarantine({ ...inputs(), now: new Date('2026-10-26T22:00:00Z') }), []);
 });
 
 test('the Expo quarantine fails as soon as a held patch becomes eligible', () => {
