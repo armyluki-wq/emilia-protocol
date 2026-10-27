@@ -128,7 +128,7 @@ selection that no longer satisfies the filters.
 | --- | --- |
 | `ORCAROUTER_API_KEY` | Unattended API key (`sk-orca-…`). Never committed. |
 | `ORCAROUTER_PROVIDER_ADMIN` | `1`/`true`/`enabled` exposes the internal settings surface (a feature flag, not an identity). |
-| `TRUST_DESK_SESSION_SECRET` / `TRUST_DESK_REVIEWER_ID` | Signed internal administrator session required by every settings route and the page. |
+| `TRUST_DESK_SESSION_SECRET` / `TRUST_DESK_REVIEWER_ID` | Signed internal Trust Desk reviewer session required by every settings route and the page. |
 | `TRUST_DESK_ORCAROUTER_MODEL` | Model override when no explicit selection is stored. |
 | `TRUST_DESK_ORCAROUTER_EMBEDDING_MODEL` | Embedding model (default `openai/text-embedding-3-small`). |
 | `ORCAROUTER_AUTH_BASE_URL` / `ORCAROUTER_API_BASE_URL` / `ORCA_BASE_URL` | Origin overrides. |
@@ -139,7 +139,7 @@ selection that no longer satisfies the filters.
 
 | Route | Method | Purpose |
 | --- | --- | --- |
-| `/internal/trust-desk/providers` | GET | Settings page (admin-gated). |
+| `/internal/trust-desk/providers` | GET | Settings page (signed Trust Desk session required). |
 | `/api/orcarouter/status` | GET | Masked credential, origins, model layers. |
 | `/api/orcarouter/models` | GET | Capability-filtered catalog proxy. |
 | `/api/orcarouter/credential` | POST / DELETE | Save or clear a pasted API key. |
@@ -148,11 +148,11 @@ selection that no longer satisfies the filters.
 | `/api/orcarouter/connect/cancel` | POST | Release a pending attempt. |
 | `/api/orcarouter/preferences` | GET / POST | Read or persist the model selection for one capability. |
 
-Every route authenticates an internal administrator session
+Every route requires a signed internal Trust Desk reviewer session
 (`TRUST_DESK_SESSION_SECRET` + `TRUST_DESK_REVIEWER_ID`) and returns
 `Cache-Control: no-store`; `ORCAROUTER_PROVIDER_ADMIN` only decides whether the
 surface exists. Mutations require an explicit same-origin `Origin` header, and
-PKCE attempts are bound to the administrator that started them, so completion
+PKCE attempts are bound to the reviewer identity that started them, so completion
 and cancellation by another principal are refused. The PKCE write is fenced
 against the credential generation captured at start: if the credential was
 cancelled or replaced while the exchange was in flight, the older approval is
@@ -169,3 +169,18 @@ npx vitest run tests/orcarouter-provider.test.ts tests/orcarouter-catalog.test.t
 The live test is skipped unless `ORCAROUTER_API_KEY` is present; when present it
 exercises the real catalog and one chat completion through the provider code
 path, preferring the cyber models.
+
+
+The ordinary Playwright smoke suite does not collect the dedicated live-provider
+evidence test. To run that test in an authorized verification environment,
+configure `ORCAROUTER_API_KEY` and use its dedicated configuration:
+
+```sh
+npx --no-install playwright test --config=playwright.orca.config.mjs
+```
+
+That configuration supplies synthetic session-signing fixtures and enables the
+settings surface. The provider key is separately required for the real catalog
+and configured-credential assertions. The live-provider evidence run was not
+performed as part of the credential-free CI wiring repair. To inspect either
+suite without starting browsers or making provider calls, use `--list`.
