@@ -15,6 +15,18 @@ import {
 
 type CaidPlaygroundProps = {
   initialComparison: CaidComparison;
+  caidRegistration: {
+    registration_date: string;
+    registry_url: string;
+    cri_scheme_number: number;
+    cri_registry_url: string;
+  };
+  challengeRegistration: {
+    registration_date: string;
+    media_type: string;
+    registry_url: string;
+    intended_usage: string;
+  };
 };
 
 const AMOUNT_MUTATION: CaidDemoInput = {
@@ -50,7 +62,11 @@ function Identifier({ children }: { children: string }) {
   );
 }
 
-export default function CaidPlayground({ initialComparison }: CaidPlaygroundProps) {
+export default function CaidPlayground({
+  initialComparison,
+  caidRegistration,
+  challengeRegistration,
+}: CaidPlaygroundProps) {
   const [input, setInput] = useState<CaidDemoInput>({ ...BASELINE_CAID_INPUT });
   const [comparison, setComparison] = useState(initialComparison);
   const [dirty, setDirty] = useState(false);
@@ -267,18 +283,34 @@ export default function CaidPlayground({ initialComparison }: CaidPlaygroundProp
             <h2 id="status-heading">A registered name, with a deliberately narrow claim.</h2>
             <p>
               The <code>canactid</code> URI scheme is provisionally registered in IANA&apos;s URI Schemes
-              registry and references CAID-05. CAID remains an individual Internet-Draft. The
+              registry as of {caidRegistration.registration_date} and references CAID-05. Its CRI scheme
+              number is {caidRegistration.cri_scheme_number}. CAID remains an individual Internet-Draft. The
               registration is not IETF adoption, endorsement, or permanent status.
             </p>
             <div className={styles.statusLinks}>
-              <a href="https://www.iana.org/assignments/uri-schemes/prov/canactid" target="_blank" rel="noreferrer">
+              <a href={caidRegistration.registry_url} target="_blank" rel="noreferrer">
                 IANA registry entry
+              </a>
+              <a href={caidRegistration.cri_registry_url} target="_blank" rel="noreferrer">
+                URI and CRI registry
               </a>
               <a href="https://datatracker.ietf.org/doc/draft-schrock-canonical-action-identifier/" target="_blank" rel="noreferrer">
                 Read CAID-05
               </a>
               <a href="https://github.com/emiliaprotocol/emilia-protocol/tree/main/caid" target="_blank" rel="noreferrer">
                 Reference code and vectors
+              </a>
+            </div>
+            <p>
+              Separately, IANA registered the vendor media type
+              {' '}<code style={{ overflowWrap: 'anywhere' }}>{challengeRegistration.media_type}</code>
+              {' '}on {challengeRegistration.registration_date}, for {challengeRegistration.intended_usage}.
+              It labels a bare <code>AE-CHALLENGE-v1</code> JSON object, not a CAID or an authorization receipt.
+              HTTP refusal responses still use <code>application/problem+json</code>.
+            </p>
+            <div className={styles.statusLinks}>
+              <a href={challengeRegistration.registry_url} target="_blank" rel="noreferrer">
+                Challenge media-type registration
               </a>
             </div>
           </div>

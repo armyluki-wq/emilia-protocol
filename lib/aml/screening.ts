@@ -84,7 +84,7 @@ export function screenSanctions(
 
 // Comprehensive sanctions programs target these jurisdictions (illustrative
 // snapshot; production loads the current embargo set with the watchlist).
-const EMBARGOED_COUNTRIES = new Set(['IR', 'KP', 'SY', 'CU']);
+const EMBARGOED_COUNTRIES = new Set(['IR', 'KP', 'CU']);
 
 // ── Structuring + velocity ───────────────────────────────────────────────────
 

@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
+import standardsStatus from '@/standards/STATUS.json';
 
 import CaidPlayground from './CaidPlayground';
 import { buildCaidComparison } from './model';
@@ -117,7 +118,13 @@ describe('/caid exact-action playground', () => {
 
   it('states the useful claim and every important non-claim in plain language', () => {
     const comparison: CaidComparison = buildCaidComparison(BASELINE_CAID_INPUT);
-    const html = renderToStaticMarkup(<CaidPlayground initialComparison={comparison} />);
+    const html = renderToStaticMarkup(
+      <CaidPlayground
+        initialComparison={comparison}
+        caidRegistration={standardsStatus.october_5_2026_canactid_iana_registration}
+        challengeRegistration={standardsStatus.october_6_2026_ae_challenge_iana_registration}
+      />,
+    );
 
     expect(html).toContain('One exact action.');
     expect(html).toContain('One portable identifier.');
@@ -131,6 +138,13 @@ describe('/caid exact-action playground', () => {
     expect(html).toContain('not a URL to fetch');
     expect(html).toContain('provisionally registered');
     expect(html).toContain('not IETF adoption, endorsement, or permanent status');
+    expect(html).toContain('2026-10-05');
+    expect(html).toContain('1033');
+    expect(html).toContain('2026-10-06');
+    expect(html).toContain('application/vnd.emilia.authorization-evidence-challenge+json');
+    expect(html).toContain('LIMITED USE');
+    expect(html).toContain('application/problem+json');
+    expect(html).toContain('href="https://www.iana.org/assignments/media-types/application/vnd.emilia.authorization-evidence-challenge+json"');
   });
 
   it('exposes the bounded reference comparison through the public route', async () => {

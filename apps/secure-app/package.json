@@ -36,6 +36,7 @@
     "expo-constants": "57.0.20",
     "metro": "0.84.5",
     "nanoid": "3.3.18",
+    "node-forge": "1.4.2",
     "postcss": "8.5.25",
     "shell-quote": "1.11.0",
     "source-map-js": "1.2.2",

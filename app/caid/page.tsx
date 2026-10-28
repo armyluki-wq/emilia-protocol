@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Metadata } from 'next';
+import standardsStatus from '@/standards/STATUS.json';
 
 import CaidPlayground from './CaidPlayground';
 import { buildCaidComparison } from './model';
@@ -21,5 +22,11 @@ export const metadata: Metadata = {
 };
 
 export default function CaidPage() {
-  return <CaidPlayground initialComparison={buildCaidComparison(BASELINE_CAID_INPUT)} />;
+  return (
+    <CaidPlayground
+      initialComparison={buildCaidComparison(BASELINE_CAID_INPUT)}
+      caidRegistration={standardsStatus.october_5_2026_canactid_iana_registration}
+      challengeRegistration={standardsStatus.october_6_2026_ae_challenge_iana_registration}
+    />
+  );
 }

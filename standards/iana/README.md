@@ -21,8 +21,8 @@ posted text.
   the transport-neutral AE Challenge HTTP binding.
 - `media-type-registration.md`: the active RFC 6838 §5.6 templates for
   `application/ep-authorization-receipt+json` and
-  `application/ep-authorization-bundle+json`, the prepared AE Challenge
-  vendor-tree request, and the retired standards-tree request retained as
+  `application/ep-authorization-bundle+json`, the completed AE Challenge
+  vendor-tree registration, and the retired standards-tree request retained as
   process history.
 - `ae-challenge-vendor-binding.md`: Version 1 media-type serialization
   specification for the bare AE-CHALLENGE-v1 object; despite the historical
@@ -44,7 +44,7 @@ posted text.
 |---|---|---|---|---|---|---|
 | 1 | `agent-action-control.json` | Well-Known URIs | draft-schrock-agent-action-manifest-00 (§3, §9), state Replaced on Datatracker | The replaced draft requested registration; its Datatracker successor draft-schrock-action-evidence-boundary (and draft-schrock-ep-architecture, per `STATUS.json`) has no IANA actions | NOT FILED; no active backing draft | Do not file unless an active draft requests it |
 | 2 | `ae-required` (type URI `https://iana.org/assignments/http-problem-types#ae-required`, title "Authorization Evidence Required") | HTTP Problem Types | draft-schrock-ae-challenge-07 (§3, §6; published 2026-08-10) | **Requests registration** under Specification Required; reuses `application/problem+json` | CARRIED-BY-DRAFT | Continue focused HTTP and Independent Stream review; do not file a conflicting direct request |
-| 2a | `application/vnd.emilia.authorization-evidence-challenge+json` | Media Types (vendor tree) | EMILIA Version 1 serialization specification; draft-schrock-ae-challenge-07 is informative context only | **Bare object only; not an enclosing carrier** | IANA-TICKET-1458921 | Continue vendor-tree expert review; do not hold registration on the Internet-Draft's stream |
+| 2a | `application/vnd.emilia.authorization-evidence-challenge+json` | Media Types (vendor tree) | EMILIA Version 1 serialization specification; draft-schrock-ae-challenge-07 is informative context only | **Bare object only; not an enclosing carrier** | [REGISTERED 2026-10-06](https://www.iana.org/assignments/media-types/application/vnd.emilia.authorization-evidence-challenge+json); IANA-TICKET-1458921 completed | Maintain the Version 1 vendor specification; this is not an IETF allocation |
 | 3 | `application/ep-authorization-receipt+json` | Media Types (standards tree) | draft-schrock-ep-authorization-receipts-13 (§14) | **Requests registration** and carries the complete RFC 6838 template | CARRIED-BY-DRAFT | Process with the Standards Track document; do not file a conflicting direct request |
 | 4 | `application/ep-authorization-bundle+json` | Media Types (standards tree) | draft-schrock-ep-authorization-receipts-13 (§14) | **Requests registration** and carries the complete RFC 6838 template | CARRIED-BY-DRAFT | Process with the Standards Track document; do not file a conflicting direct request |
 | 5 | `Receipt-Required` | HTTP Field Names | draft-schrock-agent-action-manifest-00 (§5 + example control object), state Replaced on Datatracker | Field *named*, not normatively defined; no registration request | NOT PREPARED; no active backing draft | An active draft that defines the field and requests it |
@@ -83,11 +83,12 @@ registry, not IANA's.
   **media-types@iana.org** mailing list for review before or alongside the
   request. For standards-tree names this review is expected; for the vendor
   request it is useful but not mandatory.
-- **AE Challenge vendor type:** IANA ticket #1458921 is under expert review.
-  The published Version 1 specification is self-contained and remains
-  maintained regardless of the related Internet-Draft's stream or fate. The
-  type labels the bare object, not an enclosing HTTP Problem Details response,
-  and registration would not represent IETF endorsement.
+- **AE Challenge vendor type:** [registered by IANA on 2026-10-06](https://www.iana.org/assignments/media-types/application/vnd.emilia.authorization-evidence-challenge+json);
+  registration under ticket #1458921 is completed. The register lists LIMITED
+  USE and EMILIA Protocol, Inc. as change controller. The published Version 1
+  specification remains maintained regardless of the related Internet-Draft's
+  stream or fate. The type labels the bare object, not an enclosing HTTP
+  Problem Details response. Registration does not represent IETF endorsement.
 - **Receipt media types:** revision -13 (§14) requests
   `application/ep-authorization-receipt+json` and
   `application/ep-authorization-bundle+json`, and carries complete templates
@@ -126,10 +127,10 @@ registry, not IANA's.
 1. Verify each backing draft is live on Datatracker before citing it to IANA.
 2. For entry 2, continue focused review of the published AE Challenge -07 and
    process the HTTP Problem Type with its publication path.
-3. For entry 2a, continue expert review under IANA ticket #1458921 using the
-   self-contained Version 1 specification. Do not reopen the retired
-   standards-tree tickets, hold the vendor request on an Internet-Draft stream,
-   or describe the vendor type as an enclosing carrier.
+3. Entry 2a is registered as of 2026-10-06; registration under IANA ticket
+   #1458921 is completed. Maintain the self-contained Version 1 specification.
+   Do not reopen the retired standards-tree tickets or describe the registered
+   vendor type as an enclosing carrier or an IETF allocation.
 4. **Do not file entry 1** (`agent-action-control.json`). Its only backing
    draft is Replaced. File it only if an active draft requests the
    registration, after re-verifying that draft and the registry state.

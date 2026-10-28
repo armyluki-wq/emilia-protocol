@@ -330,6 +330,21 @@ portfolio of individual Internet-Drafts. A published Internet-Draft is not an
 RFC, an adopted working-group item, or IETF endorsement; Datatracker is
 authoritative for revision and status.
 
+### IANA registrations
+
+Two registered names give implementers a common reference for EMILIA formats:
+
+- [`application/vnd.emilia.authorization-evidence-challenge+json`](https://www.iana.org/assignments/media-types/application/vnd.emilia.authorization-evidence-challenge+json)
+  was registered on October 6, 2026. It identifies the bare `AE-CHALLENGE-v1`
+  JSON object defined by the [published serialization specification](standards/iana/ae-challenge-vendor-binding.md).
+  HTTP refusal responses continue to use `application/problem+json`.
+- [`canactid:`](https://www.iana.org/assignments/uri-schemes/prov/canactid)
+  was provisionally registered on October 5, 2026. It names exact typed actions
+  under CAID-05. Its corrected [CRI scheme number is 1033](https://www.iana.org/assignments/uri-schemes).
+
+These registrations publish the names and their specifications. They do not
+establish IETF adoption, endorsement, certification, or customer deployment.
+
 ### One consequence-boundary surface
 
 The current published

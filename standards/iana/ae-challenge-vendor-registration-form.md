@@ -1,6 +1,8 @@
 # IANA vendor media-type request: live-form field map
 
-Status: Submitted to IANA as ticket #1458921; designated-expert review pending.
+Status: Registered by IANA on 2026-10-06 under ticket #1458921.
+[Official registry entry](https://www.iana.org/assignments/media-types/application/vnd.emilia.authorization-evidence-challenge+json).
+The field map below is retained as submission history, not a pending request.
 
 Leave the form's humanity-check field blank.
 
@@ -147,7 +149,7 @@ Author/Change Controller:
 Iman Schrock, EMILIA Protocol, Inc. <team@emiliaprotocol.ai>. Change controller:
 EMILIA Protocol, Inc. <team@emiliaprotocol.ai>.
 
-## Submission controls
+## Submission controls used for the completed request
 
 - Accept IANA's privacy-policy and terms-of-service acknowledgement only at the
   final submission step.
@@ -157,5 +159,5 @@ EMILIA Protocol, Inc. <team@emiliaprotocol.ai>.
 - Select No for provisional registration.
 - Do not use IETF as change controller.
 - Do not claim deployment, IETF review, or standards endorsement.
-- Keep the serialization-specification URL public and stable throughout review.
-- Preserve IANA ticket #1458921 and record the final registry outcome.
+- Keep the serialization-specification URL public and stable after registration.
+- Preserve IANA ticket #1458921; the completed registry outcome is recorded above.

@@ -1,6 +1,6 @@
 {
   "@version": "EMILIA-STANDARDS-PORTFOLIO-v1",
-  "updated": "2026-10-05",
+  "updated": "2026-10-26",
   "active_datatracker_count": 26,
   "active_schrock_datatracker_count": 22,
   "sole_authored_datatracker_count": 21,
@@ -1028,7 +1028,10 @@
     "status": "provisional",
     "registry_url": "https://www.iana.org/assignments/uri-schemes/prov/canactid",
     "reference": "draft-schrock-canonical-action-identifier-05",
-    "claim_boundary": "This is an IANA provisional URI-scheme registration under RFC 7595. It is not permanent registration, IETF adoption, IETF endorsement, certification, implementation evidence, deployment evidence, authorization, or proof of execution."
+    "claim_boundary": "This is an IANA provisional URI-scheme registration under RFC 7595. It is not permanent registration, IETF adoption, IETF endorsement, certification, implementation evidence, deployment evidence, authorization, or proof of execution.",
+    "cri_scheme_number": 1033,
+    "cri_scheme_number_corrected_on": "2026-10-14",
+    "cri_registry_url": "https://www.iana.org/assignments/uri-schemes"
   },
   "retired_absorbed": [
     {
@@ -1279,5 +1282,18 @@
         "txt_sha256": "2c0668b2381fd1425a4935dd8cd0404d7429fb190813c22c1d6110b5343bd507"
       }
     ]
+  },
+  "october_6_2026_ae_challenge_iana_registration": {
+    "registration_date": "2026-10-06",
+    "media_type": "application/vnd.emilia.authorization-evidence-challenge+json",
+    "status": "registered",
+    "registration_tree": "vendor",
+    "intended_usage": "LIMITED USE",
+    "registry_url": "https://www.iana.org/assignments/media-types/application/vnd.emilia.authorization-evidence-challenge+json",
+    "specification": "standards/iana/ae-challenge-vendor-binding.md",
+    "change_controller": "EMILIA Protocol, Inc.",
+    "ticket": 1458921,
+    "verified_on": "2026-10-26",
+    "claim_boundary": "The vendor media type labels the bare AE-CHALLENGE-v1 object. The HTTP refusal response remains application/problem+json. Registration is not IETF adoption, endorsement, certification, implementation evidence, or deployment evidence."
   }
 }

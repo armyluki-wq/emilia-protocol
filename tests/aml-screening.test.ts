@@ -50,6 +50,17 @@ describe('sanctions screening', () => {
     expect(r.country_blocked).toBe(false);
     expect(r.hit).toBe(false);
   });
+  it('does not country-block Syria after the end of comprehensive sanctions', () => {
+    const r = screenSanctions('Some Neutral Party', { country: 'SY' });
+    expect(r.country_blocked).toBe(false);
+    expect(r.hit).toBe(false);
+  });
+  it('still flags a listed party with a Syrian country', () => {
+    const r = screenSanctions('Blocked Person Alpha', { country: 'SY' });
+    expect(r.country_blocked).toBe(false);
+    expect(r.hit).toBe(true);
+    expect(r.matches[0].name).toBe('BLOCKED PERSON ALPHA');
+  });
 });
 
 describe('structuring detection', () => {

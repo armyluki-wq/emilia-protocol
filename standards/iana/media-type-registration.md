@@ -2,8 +2,8 @@
 
 Registration templates per RFC 6838, Section 5.6. The current receipts draft
 carries two standards-tree registration requests. The AE Challenge section
-separately prepares a direct vendor-tree request for a bare serialized
-object and preserves the withdrawn standards-tree request as process history.
+records the completed vendor-tree registration for a bare serialized object
+and preserves the withdrawn standards-tree request as process history.
 The current HTTP binding continues to use RFC 9457
 `application/problem+json`.
 
@@ -17,12 +17,18 @@ do not yet have.
 
 ## 1. application/vnd.emilia.authorization-evidence-challenge+json
 
-**Status: SUBMITTED; IANA TICKET #1458921 UNDER EXPERT REVIEW; NOT YET
-REGISTERED.**
+**Status: REGISTERED 2026-10-06; registration under IANA ticket #1458921
+is completed.**
+
+The [official IANA record](https://www.iana.org/assignments/media-types/application/vnd.emilia.authorization-evidence-challenge+json)
+registers `application/vnd.emilia.authorization-evidence-challenge+json`
+with intended usage LIMITED USE and EMILIA Protocol, Inc. as change controller.
+This is a vendor-tree registration, not a standards-tree allocation or IETF
+endorsement.
 
 On 2026-08-29 the project intentionally reopened the vendor-tree route that
-IANA offered in ticket #1456851. This is a new request, independent of the
-closed standards-tree tickets #1456611 and #1456851. It does not revive the
+IANA offered in ticket #1456851. That request was independent of the
+closed standards-tree tickets #1456611 and #1456851. Registration does not revive the
 withdrawn HTTP media type and does not imply IETF review or endorsement.
 
 The vendor type labels only the bare transport-neutral `AE-CHALLENGE-v1` JSON

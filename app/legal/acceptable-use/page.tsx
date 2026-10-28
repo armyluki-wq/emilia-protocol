@@ -34,7 +34,7 @@ export default function AcceptableUsePage() {
           <li>Probe, scan, or test the vulnerability of any system or network without express written authorization from the owner; this includes systems run by us. Coordinated security research is welcomed via the policy at <a href="/security" style={{ color: color.blue }}>/security</a>.</li>
           <li>Bypass or attempt to bypass the protocol's authorization mechanisms, replay handshakes, forge signoffs, or otherwise undermine the integrity properties the protocol exists to enforce.</li>
           <li>Use the services to authorize, facilitate, or evade detection of fraud, money laundering, sanctions evasion, or terrorist financing.</li>
-          <li>Operate the services on behalf of, or for the benefit of, parties subject to comprehensive sanctions in jurisdictions including Cuba, Iran, North Korea, Syria, the Crimea region of Ukraine, the so-called Donetsk and Luhansk People's Republics, or any individual or entity on the OFAC SDN list.</li>
+          <li>Operate the services on behalf of, or for the benefit of, parties subject to comprehensive sanctions in jurisdictions including Cuba, Iran, North Korea, the Crimea region of Ukraine, the so-called Donetsk and Luhansk People's Republics, or any individual or entity on the OFAC SDN list.</li>
           <li>Use the services to operate critical-safety systems where service degradation could cause physical harm — life support, transportation control, weapons-control systems — without an explicit written agreement covering that deployment.</li>
         </ul>
 

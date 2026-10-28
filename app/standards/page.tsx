@@ -36,6 +36,7 @@ const ADOPTION_PATH = standardsStatus.canonical_four_document_surface.documents.
 }));
 
 const CAID_REGISTRATION = standardsStatus.october_5_2026_canactid_iana_registration;
+const CHALLENGE_REGISTRATION = standardsStatus.october_6_2026_ae_challenge_iana_registration;
 
 // Three interfaces with adjacent standards. These are composition points, not
 // claims that another standards body has adopted EMILIA.
@@ -253,7 +254,7 @@ export default function StandardsPage() {
           </p>
         </section>
 
-        {/* REGISTERED EXACT-ACTION NAMESPACE */}
+        {/* REGISTERED IDENTIFIER AND MEDIA TYPE */}
         <section style={{ ...styles.section, paddingTop: 24, paddingBottom: 48 }}>
           <div style={styles.container}>
             <div
@@ -281,6 +282,8 @@ export default function StandardsPage() {
               </div>
               <div style={{ alignSelf: 'center' }}>
                 <p style={{ ...styles.cardBody, marginTop: 0 }}>
+                  The URI Schemes registry lists CRI scheme number {CAID_REGISTRATION.cri_scheme_number}.
+                  {' '}
                   Registration reserves a common name. It does not authorize the action, prove execution, make CAID an
                   RFC, or signal IETF endorsement.
                 </p>
@@ -293,6 +296,56 @@ export default function StandardsPage() {
                     style={cta.secondary}
                   >
                     See the IANA record
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div
+              style={{
+                ...styles.card,
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
+                gap: 36,
+                marginTop: 24,
+                padding: '34px 36px',
+                borderTop: `3px solid ${color.gold}`,
+              }}
+            >
+              <div>
+                <div style={{ ...styles.eyebrow, color: goldText }}>
+                  IANA VENDOR MEDIA TYPE · REGISTERED {CHALLENGE_REGISTRATION.registration_date}
+                </div>
+                <h2 style={{ ...styles.h2, fontSize: 30, marginTop: 12, marginBottom: 12 }}>
+                  A shared label for the evidence request.
+                </h2>
+                <p style={{ ...styles.body, maxWidth: 720, margin: 0 }}>
+                  <code style={{ overflowWrap: 'anywhere' }}>{CHALLENGE_REGISTRATION.media_type}</code>
+                  {' '}identifies one bare <code>AE-CHALLENGE-v1</code> JSON object. Compatible systems can
+                  recognize the format of an evidence request before deciding how to process it.
+                </p>
+              </div>
+              <div style={{ alignSelf: 'center' }}>
+                <p style={{ ...styles.cardBody, marginTop: 0 }}>
+                  Registered for {CHALLENGE_REGISTRATION.intended_usage}. HTTP refusal responses still use
+                  {' '}<code>application/problem+json</code>. The vendor type is for the bare object only.
+                  A challenge does not grant authority. Registration is not IETF endorsement or certification.
+                </p>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
+                  <a
+                    href={CHALLENGE_REGISTRATION.registry_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={cta.primary}
+                  >
+                    See the media-type record
+                  </a>
+                  <a
+                    href={`https://github.com/emiliaprotocol/emilia-protocol/blob/main/${CHALLENGE_REGISTRATION.specification}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={cta.secondary}
+                  >
+                    Read the serialization specification
                   </a>
                 </div>
               </div>

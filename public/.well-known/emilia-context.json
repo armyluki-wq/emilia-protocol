@@ -1,14 +1,14 @@
 {
   "@version": "EMILIA-REPO-CONTEXT-v1",
-  "evidence_snapshot_at": "2026-10-06T20:59:22.317Z",
+  "evidence_snapshot_at": "2026-10-27T23:48:51.960Z",
   "provenance": {
     "generator": "scripts/generate-llm-context.mts",
-    "input_digest_sha256": "e8498adb56c496c385022440ad58b77c0e606432f5b4236dd9aeb169f42d31f1",
+    "input_digest_sha256": "0dd962043a18f0b4269caf6464e1ec8eefceb143d94ef1f461538126ac69b635",
     "generated_from": [
       {
         "path": "docs/ai/context-source.v1.json",
-        "sha256": "e6b51b7e48d7274335eb6f38afac18ffce4530fe44d63e4a46a8bd1243984a80",
-        "bytes": 51922
+        "sha256": "9dd977d280779ca61caaf93a790441d8799ef9406b29bb2952f05f430d8727b7",
+        "bytes": 52407
       },
       {
         "path": "scripts/generate-llm-context.mts",
@@ -17,12 +17,12 @@
       },
       {
         "path": "lib/proof-stats.json",
-        "sha256": "0425c1e87be8b095c0376878335d5316fae51ba3c9be7ecad2f57aba3d7797ad",
+        "sha256": "625aff5739aec54e3ae1e7cf6f72dc77a7171f0865e1e9fa129a44d9d2320a17",
         "bytes": 4299
       },
       {
         "path": "conformance/conformance-manifest.json",
-        "sha256": "6009077d865b7a86cc5cd1d9be8379defd2340bbd7b472a4fa7906e6d6a74ac4",
+        "sha256": "c6fe32432c9d9e7c58981f1261e5af95497ecf63b0b60cf59ddab6bb9540e095",
         "bytes": 7296
       },
       {
@@ -47,8 +47,8 @@
       },
       {
         "path": "standards/STATUS.json",
-        "sha256": "4e627cdac7b5eaef0cb1d515d6b11b07def68fb2727114584e3a7befd2957062",
-        "bytes": 82179
+        "sha256": "354de4e91231751e0c10efd12cb2412780029430a826752fc2e64625404270bf",
+        "bytes": 83176
       },
       {
         "path": "caid/conformance/vectors.json",
@@ -308,7 +308,7 @@
   ],
   "current_evidence": {
     "automated_tests": {
-      "total": 11002,
+      "total": 11004,
       "files": 672,
       "policy": "all platform-applicable cases must pass; platform-specific cases may skip"
     },
@@ -318,7 +318,7 @@
       "implementations": 3,
       "relationship": "same_team_ports",
       "claim_scope": "current same-team cross-language consistency; not independent implementation evidence",
-      "manifest_sha256": "3e4ac96ab82739ba063c631e67056d8af132623568bdded2d318f44d24c174b8",
+      "manifest_sha256": "f06d9e7104c9d1b7e7de069ac709637fe212cf537a3db6d89f72e8acbb01797b",
       "vector_bundle_sha256": "bd3d62e7bd186976d04acbdfb45aba1091398799ee500beb3d85b8d679a9f8df"
     },
     "formal": {
@@ -4466,7 +4466,8 @@
     "The external Rust result is time-pinned to the vector bundle evaluated at that run. It must not be silently upgraded when the current bundle grows.",
     "Strict clean-room construction acceptance remains false until independent construction attestation is verified under a separately pinned attestor key.",
     "The Internet-Drafts are individual submissions unless the live IETF Datatracker says otherwise. They are not RFCs and do not imply IETF endorsement.",
-    "The canactid URI scheme is provisionally registered in IANA's URI Schemes registry and references CAID-05. Provisional registration is not permanent registration, IETF adoption, IETF endorsement, certification, implementation evidence, deployment evidence, authorization, or proof of execution.",
+    "The canactid URI scheme was provisionally registered in IANA's URI Schemes registry on 2026-10-05 and references CAID-05. Its corrected CRI scheme number is 1033. Provisional registration is not permanent registration, IETF adoption, IETF endorsement, certification, implementation evidence, deployment evidence, authorization, or proof of execution.",
+    "IANA registered application/vnd.emilia.authorization-evidence-challenge+json on 2026-10-06 in the vendor tree, with LIMITED USE and EMILIA Protocol, Inc. as change controller. The type labels the bare AE-CHALLENGE-v1 object; HTTP refusal responses still use application/problem+json. Ticket #1458921 is completed. Registration does not establish IETF adoption, endorsement, certification, implementation, or customer use.",
     "Self-authored compliance mappings are mappings, not certifications or third-party assurance opinions.",
     "EMILIA is not an auditor, an accredited certification body, a regulator, or an insurer. Assurance artifacts support verification and re-performance procedures; authorized independent parties reach audit, certification, regulatory, and underwriting conclusions.",
     "EP-CERT-v1 is a scheme design. No public EMILIA certification program is operating, and CF-1 or EG-1 must not be expanded beyond the exact behavior exercised by its reproducible harness.",
@@ -4756,7 +4757,7 @@
     }
   ],
   "standards_portfolio": {
-    "updated": "2026-10-05",
+    "updated": "2026-10-26",
     "decision_vocabulary": {
       "VERIFIED": "One artifact passed its native verifier under relying-party-selected trust inputs.",
       "MATCH": "Independently verified artifacts denote the same material action directly or under exact pinned mapping profiles.",
