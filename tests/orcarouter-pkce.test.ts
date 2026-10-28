@@ -448,7 +448,7 @@ describe('OrcaRouter PKCE adapter', () => {
       process.stdout.write(String(cancelOrcaRouterAuthorization(process.argv[1], 'admin-a', process.argv[2])));`;
     const cancelled = () => new Promise<string>((resolve, reject) => {
       const child = spawn(process.execPath, ['--input-type=module', '-e', program, started.attempt_id, stateDir], {
-        env: { NODE_ENV: 'test', EP_SECRET_KEY: '1'.repeat(64) }, stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, NODE_ENV: 'test' }, stdio: ['ignore', 'pipe', 'pipe'],
       });
       let output = '';
       let error = '';
@@ -510,7 +510,7 @@ describe('OrcaRouter PKCE adapter', () => {
       } catch (error) { process.stdout.write('DONE:' + (error.code || error.message) + '\\n'); }`;
     const launch = () => {
       const child = spawn(process.execPath, ['--input-type=module', '-e', program, started.attempt_id, stateDir, release, exchanges, pending], {
-        env: { NODE_ENV: 'test', EP_SECRET_KEY: '1'.repeat(64) }, stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, NODE_ENV: 'test' }, stdio: ['ignore', 'pipe', 'pipe'],
       });
       let output = '';
       let errors = '';

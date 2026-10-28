@@ -273,7 +273,7 @@ describe('OrcaRouter credential store', () => {
         catch (error) { process.stdout.write(error.message); }`;
       const run = (key: string) => new Promise<string>((resolve, reject) => {
         const child = spawn(process.execPath, ['--input-type=module', '-e', program, key, fence, stateDir], {
-          env: { NODE_ENV: 'test', EP_SECRET_KEY: '1'.repeat(64) }, stdio: ['ignore', 'pipe', 'pipe'],
+          env: { ...process.env, NODE_ENV: 'test' }, stdio: ['ignore', 'pipe', 'pipe'],
         });
         let output = '';
         let error = '';
