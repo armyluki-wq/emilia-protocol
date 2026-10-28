@@ -103,6 +103,55 @@ afterEach(() => {
 });
 
 describe('OrcaRouter catalog fixtures', () => {
+
+  it('does not reuse a live catalog across credential, origin or state-directory changes', async () => {
+    const dir = stateDir();
+    const impl = vi.fn(liveFetch());
+    const base = { env: envWithKey, credential, fetchImpl: impl as any, stateDir: dir, useCache: true };
+    await discoverOrcaRouterModels(base);
+    await discoverOrcaRouterModels(base);
+    expect(impl).toHaveBeenCalledTimes(1);
+    await discoverOrcaRouterModels({ ...base, credential: { ...credential, key: 'sk-orca-otherfixture1234567' } });
+    expect(impl).toHaveBeenCalledTimes(2);
+    await discoverOrcaRouterModels({ ...base, credential: { ...credential, generation: 'new-generation' } });
+    expect(impl).toHaveBeenCalledTimes(3);
+    await discoverOrcaRouterModels({ ...base, origins: { auth: 'https://auth.example.test', api: 'https://api.example.test/v1' } });
+    expect(impl).toHaveBeenCalledTimes(4);
+    await discoverOrcaRouterModels({ ...base, stateDir: stateDir() });
+    expect(impl).toHaveBeenCalledTimes(5);
+  });
+
+  it('bounds retained catalogs when credentials rotate repeatedly', async () => {
+    const dir = stateDir();
+    try {
+      const impl = vi.fn(liveFetch());
+      const base = { env: envWithKey, credential, fetchImpl: impl as any, stateDir: dir, useCache: true };
+      for (let generation = 0; generation < 65; generation++) {
+        await discoverOrcaRouterModels({ ...base, credential: { ...credential, generation: String(generation) } });
+      }
+      expect(impl).toHaveBeenCalledTimes(65);
+      await discoverOrcaRouterModels({ ...base, credential: { ...credential, generation: '64' } });
+      expect(impl).toHaveBeenCalledTimes(65);
+      await discoverOrcaRouterModels({ ...base, credential: { ...credential, generation: '0' } });
+      expect(impl).toHaveBeenCalledTimes(66);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not use another credential or origin last-known-good catalog during an outage', async () => {
+    const dir = stateDir();
+    await discoverOrcaRouterModels({ env: envWithKey, credential, fetchImpl: liveFetch(), stateDir: dir });
+    resetOrcaRouterCatalogCache();
+    const switched = await discoverOrcaRouterModels({ env: envWithKey,
+      credential: { ...credential, key: 'sk-orca-otherfixture1234567' }, fetchImpl: failFetch(), stateDir: dir });
+    expect(switched.source).toBe('seed');
+    const moved = await discoverOrcaRouterModels({ env: envWithKey, credential,
+      origins: { auth: 'https://auth.example.test', api: 'https://api.example.test/v1' },
+      fetchImpl: failFetch(), stateDir: dir });
+    expect(moved.source).toBe('seed');
+  });
+
   it('selects exactly the text-capable chat entries', async () => {
     const catalog = await discoverOrcaRouterModels({
       env: envWithKey, credential, fetchImpl: liveFetch(), stateDir: stateDir(), useCache: false,

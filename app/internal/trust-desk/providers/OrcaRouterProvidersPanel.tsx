@@ -16,6 +16,7 @@
 // bfcache restore would otherwise come back permanently busy.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { requestOrcaCancellation } from './orcarouter-cancellation';
 
 type Credential = {
   configured: boolean;
@@ -207,7 +208,7 @@ export default function OrcaRouterProvidersPanel(): React.ReactElement {
     const remaining = Date.parse(connect.expires_at) - Date.now();
     const timer = setTimeout(() => {
       clearLoginState();
-      setNotice('The authorization window closed. Start a new connection.');
+      setNotice('The authorization window closed. Check OrcaRouter for any key already issued.');
       fetch('/api/orcarouter/connect/cancel', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -253,18 +254,31 @@ export default function OrcaRouterProvidersPanel(): React.ReactElement {
   };
 
   const saveApiKey = async () => {
-    // Switching authentication method releases any pending PKCE attempt.
+    let priorAuthorizationNotice: string | null = null;
+    // Do not switch methods while cancellation of a pending attempt is uncertain.
     if (connect) {
-      await fetch('/api/orcarouter/connect/cancel', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ attempt_id: connect.attempt_id }),
-      }).catch(() => {});
+      const generation = ++attemptRef.current;
+      setBusy('cancel');
+      setError(null);
+      setNotice(null);
+      const result = await requestOrcaCancellation(connect.attempt_id);
+      if (attemptRef.current !== generation) return;
+      if (result.outcome === 'unconfirmed') {
+        setBusy(null);
+        setError(result.message);
+        await loadStatus().catch(() => {});
+        return;
+      }
+      priorAuthorizationNotice = result.message;
       clearLoginState();
+      setBusy('save');
+      const saveGeneration = attemptRef.current;
+      await loadStatus().catch(() => {});
+      if (attemptRef.current !== saveGeneration) return;
     }
     setBusy('save');
     setError(null);
-    setNotice(null);
+    setNotice(priorAuthorizationNotice);
     try {
       const res = await fetch('/api/orcarouter/credential', {
         method: 'POST',
@@ -274,7 +288,9 @@ export default function OrcaRouterProvidersPanel(): React.ReactElement {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.detail || 'Could not save the API key.');
       setApiKey('');
-      setNotice('API key saved. It is sealed at rest and never shown again.');
+      setNotice(priorAuthorizationNotice
+        ? `API key saved. ${priorAuthorizationNotice}`
+        : 'API key saved. It is sealed at rest and never shown again.');
       await loadStatus();
       await loadCatalog(capability, requiresImage, true);
     } catch (err: any) {
@@ -355,15 +371,23 @@ export default function OrcaRouterProvidersPanel(): React.ReactElement {
 
   const cancelConnect = async () => {
     const pending = connect;
-    clearLoginState();
-    setNotice('Connection cancelled.');
-    if (pending) {
-      await fetch('/api/orcarouter/connect/cancel', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ attempt_id: pending.attempt_id }),
-      }).catch(() => {});
+    if (!pending) return;
+    // Ignore a late completion response while cancellation is being resolved.
+    const generation = ++attemptRef.current;
+    setBusy('cancel');
+    setNotice(null);
+    setError(null);
+    const result = await requestOrcaCancellation(pending.attempt_id);
+    if (attemptRef.current !== generation) return;
+    if (result.outcome === 'unconfirmed') {
+      setBusy(null);
+      setError(result.message);
+      await loadStatus().catch(() => {});
+      return;
     }
+    clearLoginState();
+    setNotice(result.message);
+    await loadStatus().catch(() => {});
   };
 
   const chooseModel = async (model: Model) => {
@@ -510,7 +534,7 @@ export default function OrcaRouterProvidersPanel(): React.ReactElement {
                     <button type="button" style={{ ...s.btn, ...(disabled ? s.btnDisabled : {}) }} disabled={disabled || !code} onClick={completeConnect}>
                       {busy === 'complete' ? 'Finishing…' : 'Finish connection'}
                     </button>
-                    <button type="button" style={s.btnGhost} onClick={cancelConnect}>Cancel</button>
+                    <button type="button" style={s.btnGhost} disabled={busy === 'cancel'} onClick={cancelConnect}>Cancel</button>
                   </div>
                 </div>
               )}

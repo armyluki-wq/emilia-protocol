@@ -101,6 +101,51 @@ function writePrivateJson(target: string, value: unknown): void {
   fs.renameSync(temporary, target);
 }
 
+/** Credential mutations share one fail-closed lock on a local filesystem.
+ * A crashed holder leaves the lock in place: recovery must stop every writer
+ * before removing it. Never expire or steal an active writer's lock.
+ */
+export function withOrcaRouterCredentialLock<T>(stateDir: string | undefined, update: () => T): T {
+  const directory = orcaRouterStateDir(stateDir);
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const target = path.join(directory, 'credential.lock');
+  let descriptor: number;
+  try {
+    descriptor = fs.openSync(target, 'wx', 0o600);
+  } catch (error: any) {
+    if (error?.code === 'EEXIST') throw new Error('credential_write_locked');
+    throw error;
+  }
+  try {
+    return update();
+  } finally {
+    fs.closeSync(descriptor);
+    fs.unlinkSync(target);
+  }
+}
+
+function credentialRevision(stateDir?: string): bigint {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(path.join(orcaRouterStateDir(stateDir), 'credential-revision.json'), 'utf8');
+  } catch (error: any) {
+    if (error?.code === 'ENOENT') return 0n;
+    throw new Error('credential_revision_unreadable');
+  }
+  const record = JSON.parse(raw);
+  if (record?.version !== 1 || typeof record.revision !== 'string' || !/^(0|[1-9][0-9]*)$/.test(record.revision)) {
+    throw new Error('credential_revision_unreadable');
+  }
+  return BigInt(record.revision);
+}
+
+/** Advance before changing the key: even an interrupted mutation invalidates old attempts. */
+function advanceCredentialRevision(stateDir?: string): void {
+  writePrivateJson(path.join(orcaRouterStateDir(stateDir), 'credential-revision.json'), {
+    version: 1, revision: String(credentialRevision(stateDir) + 1n),
+  });
+}
+
 function readStored(stateDir?: string): StoredCredential | null {
   let raw: string;
   try {
@@ -267,7 +312,10 @@ export async function saveOrcaRouterApiKey(key: string, stateDir?: string): Prom
   if (!looksLikeOrcaRouterKey(key)) {
     throw new Error('invalid_key_format');
   }
-  return persistCredential(key, 'api_key', 'api', stateDir);
+  return withOrcaRouterCredentialLock(stateDir, () => {
+    advanceCredentialRevision(stateDir);
+    return persistCredential(key, 'api_key', 'api', stateDir);
+  });
 }
 
 /** PKCE adapter: persist the durable key returned by the exchange. */
@@ -279,7 +327,10 @@ export async function saveOrcaRouterPkceKey(
   if (!looksLikeOrcaRouterKey(key)) {
     throw new Error('invalid_key_format');
   }
-  return persistCredential(key, 'pkce', scope, stateDir);
+  return withOrcaRouterCredentialLock(stateDir, () => {
+    advanceCredentialRevision(stateDir);
+    return persistCredential(key, 'pkce', scope, stateDir);
+  });
 }
 
 /**
@@ -287,11 +338,14 @@ export async function saveOrcaRouterPkceKey(
  * touched: clearing the UI must not pretend to remove a deployment secret.
  */
 export async function clearOrcaRouterCredential(stateDir?: string): Promise<OrcaRouterCredentialStatus> {
-  try {
-    fs.unlinkSync(credentialPath(stateDir));
-  } catch (error: any) {
-    if (error?.code !== 'ENOENT') throw error;
-  }
+  withOrcaRouterCredentialLock(stateDir, () => {
+    advanceCredentialRevision(stateDir);
+    try {
+      fs.unlinkSync(credentialPath(stateDir));
+    } catch (error: any) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+  });
   return orcaRouterCredentialStatus(stateDir);
 }
 
@@ -301,14 +355,17 @@ export async function clearOrcaRouterCredential(stateDir?: string): Promise<Orca
  */
 export async function markOrcaRouterNeedsReauth(generation: string, stateDir?: string): Promise<void> {
   if (!generation || generation === 'env') return;
-  let stored: StoredCredential | null;
-  try {
-    stored = readStored(stateDir);
-  } catch {
-    return;
-  }
-  if (!stored || stored.generation !== generation || stored.needs_reauth) return;
-  writePrivateJson(credentialPath(stateDir), { ...stored, needs_reauth: true });
+  withOrcaRouterCredentialLock(stateDir, () => {
+    let stored: StoredCredential | null;
+    try {
+      stored = readStored(stateDir);
+    } catch {
+      return;
+    }
+    if (!stored || stored.generation !== generation || stored.needs_reauth) return;
+    advanceCredentialRevision(stateDir);
+    writePrivateJson(credentialPath(stateDir), { ...stored, needs_reauth: true });
+  });
 }
 
 export interface OrcaRouterSettings {
@@ -407,25 +464,26 @@ export async function setOrcaRouterModel(model: string, stateDir?: string): Prom
 }
 
 /**
- * The fence a PKCE attempt is bound to: the stored credential generation, or
- * `env` / `none` when only the environment supplies one. Captured when the
- * authorization starts and compared again immediately before the write, so a
- * key approved for an old attempt can never replace a newer credential.
+ * Bind an attempt to the persistent revision and exact current credential.
+ * DELETE never resets the revision. The key fingerprint also detects changes
+ * to an environment credential, whose public generation remains `env`.
  */
 export function orcaRouterCredentialFence(stateDir?: string): string {
-  let stored: StoredCredential | null;
   try {
-    stored = readStored(stateDir);
+    const stored = readStored(stateDir);
+    const envKey = getOrcaRouterEnv().apiKey;
+    const identity = stored?.generation || (envKey
+      ? `env:${crypto.createHash('sha256').update(envKey).digest('hex')}`
+      : 'none');
+    return `${credentialRevision(stateDir)}:${identity}`;
   } catch {
-    return 'unreadable';
+    throw new Error('credential_unreadable');
   }
-  if (stored && typeof stored.generation === 'string' && stored.generation) return stored.generation;
-  return getOrcaRouterEnv().apiKey ? 'env' : 'none';
 }
 
 /**
- * Fenced PKCE write. The check and the write are synchronous and contiguous,
- * so no other request can interleave between them. A mismatch means the
+ * Fenced PKCE write. The check and write hold the same exclusive local-file
+ * lock used by API-key saves, deletion and reauthentication marks. A mismatch means the
  * credential changed while the approval was in flight (cancelled, replaced by
  * an API key, or another PKCE approval won the race); the old approval is
  * discarded instead of overwriting the newer credential.
@@ -435,12 +493,19 @@ export function saveOrcaRouterPkceKeyIfCurrent(
   scope: string,
   expectedGeneration: string | null | undefined,
   stateDir?: string,
+  finalizeAttempt?: () => void,
 ): OrcaRouterCredentialStatus {
   if (!looksLikeOrcaRouterKey(key)) {
     throw new Error('invalid_key_format');
   }
-  if (orcaRouterCredentialFence(stateDir) !== (expectedGeneration || 'none')) {
-    throw new Error('credential_superseded');
-  }
-  return persistCredential(key, 'pkce', scope, stateDir);
+  return withOrcaRouterCredentialLock(stateDir, () => {
+    if (!expectedGeneration || orcaRouterCredentialFence(stateDir) !== expectedGeneration) {
+      throw new Error('credential_superseded');
+    }
+    // The caller's pending attempt is checked and removed while cancellation
+    // holds this same lock. A successful cancel cannot race this write.
+    finalizeAttempt?.();
+    advanceCredentialRevision(stateDir);
+    return persistCredential(key, 'pkce', scope, stateDir);
+  });
 }

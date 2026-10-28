@@ -183,6 +183,149 @@ describe('OrcaRouter settings routes', () => {
     expect(get.status).toBe(400);
   });
 
+
+  it('refuses an old PKCE completion after API-key save and delete through the routes', async () => {
+    const started = await startPOST(request('/api/orcarouter/connect/start', { method: 'POST', origin: ORIGIN }));
+    expect(started.status).toBe(201);
+    const { attempt_id } = await started.json();
+    expect((await credentialPOST(request('/api/orcarouter/credential', {
+      method: 'POST', origin: ORIGIN, body: { api_key: KEY },
+    }))).status).toBe(201);
+    expect((await credentialDELETE(request('/api/orcarouter/credential', {
+      method: 'DELETE', origin: ORIGIN,
+    }))).status).toBe(200);
+    const exchange = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      key: 'sk-orca-oldpkcefixture12345678', scope: 'api',
+    }), { status: 200 }));
+    const completed = await completePOST(request('/api/orcarouter/connect/complete', {
+      method: 'POST', origin: ORIGIN, body: { attempt_id, code: 'displayed-code' },
+    }));
+    expect(exchange).toHaveBeenCalledTimes(1);
+    expect(completed.status).toBe(409);
+    expect((await completed.json()).type).toMatch(/superseded$/);
+    expect(fs.existsSync(path.join(stateDir, 'credential.json'))).toBe(false);
+  });
+
+  it('reports lock contention as a conflict on credential mutations and PKCE completion', async () => {
+    const started = await startPOST(request('/api/orcarouter/connect/start', { method: 'POST', origin: ORIGIN }));
+    expect(started.status).toBe(201);
+    const { attempt_id } = await started.json();
+    const lock = path.join(stateDir, 'credential.lock');
+    fs.writeFileSync(lock, 'active-or-interrupted-writer');
+
+    const post = await credentialPOST(request('/api/orcarouter/credential', {
+      method: 'POST', origin: ORIGIN, body: { api_key: KEY },
+    }));
+    expect(post.status).toBe(409);
+    expect((await post.json()).type).toMatch(/credential_busy$/);
+    const deletion = await credentialDELETE(request('/api/orcarouter/credential', {
+      method: 'DELETE', origin: ORIGIN,
+    }));
+    expect(deletion.status).toBe(409);
+    expect((await deletion.json()).type).toMatch(/credential_busy$/);
+    const cancellation = await cancelPOST(request('/api/orcarouter/connect/cancel', {
+      method: 'POST', origin: ORIGIN, body: { attempt_id },
+    }));
+    expect(cancellation.status).toBe(409);
+    expect((await cancellation.json()).type).toMatch(/credential_busy$/);
+
+    const exchange = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      key: 'sk-orca-lockfixture12345678', scope: 'api',
+    }), { status: 200 }));
+    const completed = await completePOST(request('/api/orcarouter/connect/complete', {
+      method: 'POST', origin: ORIGIN, body: { attempt_id, code: 'displayed-code' },
+    }));
+    expect(exchange).not.toHaveBeenCalled();
+    expect(completed.status).toBe(409);
+    expect((await completed.json()).type).toMatch(/credential_busy$/);
+    expect(fs.readFileSync(lock, 'utf8')).toBe('active-or-interrupted-writer');
+    expect(fs.existsSync(path.join(stateDir, 'credential.json'))).toBe(false);
+    fs.unlinkSync(lock);
+    const retry = await completePOST(request('/api/orcarouter/connect/complete', {
+      method: 'POST', origin: ORIGIN, body: { attempt_id, code: 'displayed-code' },
+    }));
+    expect(retry.status).toBe(200);
+    expect(exchange).toHaveBeenCalledTimes(1);
+  });
+
+  it('consumes the attempt when contention arises after the provider exchange', async () => {
+    const started = await startPOST(request('/api/orcarouter/connect/start', { method: 'POST', origin: ORIGIN }));
+    const { attempt_id } = await started.json();
+    const lock = path.join(stateDir, 'credential.lock');
+    const exchange = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      fs.writeFileSync(lock, 'active-writer');
+      return new Response(JSON.stringify({ key: 'sk-orca-lockfixture12345678', scope: 'api' }), { status: 200 });
+    });
+    const completed = await completePOST(request('/api/orcarouter/connect/complete', {
+      method: 'POST', origin: ORIGIN, body: { attempt_id, code: 'displayed-code' },
+    }));
+    expect(completed.status).toBe(409);
+    expect((await completed.json()).type).toMatch(/credential_busy$/);
+    expect(exchange).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(path.join(stateDir, 'credential.json'))).toBe(false);
+    expect(fs.readFileSync(lock, 'utf8')).toBe('active-writer');
+    fs.unlinkSync(lock);
+    const retry = await completePOST(request('/api/orcarouter/connect/complete', {
+      method: 'POST', origin: ORIGIN, body: { attempt_id, code: 'displayed-code' },
+    }));
+    expect(retry.status).toBe(404);
+    expect(exchange).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not report unreadable cancellation state as an already-ended attempt', async () => {
+    const started = await startPOST(request('/api/orcarouter/connect/start', { method: 'POST', origin: ORIGIN }));
+    const { attempt_id } = await started.json();
+    const pendingPath = path.join(stateDir, 'pending', `${attempt_id}.json`);
+    fs.writeFileSync(pendingPath, '{corrupted');
+    const response = await cancelPOST(request('/api/orcarouter/connect/cancel', {
+      method: 'POST', origin: ORIGIN, body: { attempt_id },
+    }));
+    expect(response.status).toBe(503);
+    expect((await response.json()).type).toMatch(/attempt_unreadable$/);
+    expect(fs.existsSync(pendingPath)).toBe(true);
+  });
+
+  it('reports cancellation storage failure rather than silently claiming the attempt ended', async () => {
+    const started = await startPOST(request('/api/orcarouter/connect/start', { method: 'POST', origin: ORIGIN }));
+    const { attempt_id } = await started.json();
+    const pendingPath = path.join(stateDir, 'pending', `${attempt_id}.json`);
+    const originalUnlink = fs.unlinkSync.bind(fs);
+    vi.spyOn(fs, 'unlinkSync').mockImplementation((file) => {
+      if (String(file) === pendingPath) throw new Error('simulated_unlink_failure');
+      return originalUnlink(file);
+    });
+    const response = await cancelPOST(request('/api/orcarouter/connect/cancel', {
+      method: 'POST', origin: ORIGIN, body: { attempt_id },
+    }));
+    expect(response.status).toBe(503);
+    expect((await response.json()).type).toMatch(/attempt_unreadable$/);
+    expect(fs.existsSync(pendingPath)).toBe(true);
+    expect(fs.existsSync(path.join(stateDir, 'credential.lock'))).toBe(false);
+  });
+
+  it('reports finalization storage errors without claiming cancellation or installing a key', async () => {
+    const started = await startPOST(request('/api/orcarouter/connect/start', { method: 'POST', origin: ORIGIN }));
+    const { attempt_id } = await started.json();
+    const pendingPath = path.join(stateDir, 'pending', `${attempt_id}.json`);
+    const originalUnlink = fs.unlinkSync.bind(fs);
+    vi.spyOn(fs, 'unlinkSync').mockImplementation((file) => {
+      if (String(file) === pendingPath) throw new Error('simulated_unlink_failure');
+      return originalUnlink(file);
+    });
+    const exchange = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      key: 'sk-orca-lockfixture12345678', scope: 'api',
+    }), { status: 200 }));
+    const response = await completePOST(request('/api/orcarouter/connect/complete', {
+      method: 'POST', origin: ORIGIN, body: { attempt_id, code: 'displayed-code' },
+    }));
+    expect(response.status).toBe(503);
+    expect((await response.json()).type).toMatch(/attempt_unreadable$/);
+    expect(exchange).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(pendingPath)).toBe(true);
+    expect(fs.existsSync(path.join(stateDir, 'credential.json'))).toBe(false);
+    expect(fs.existsSync(path.join(stateDir, 'credential.lock'))).toBe(false);
+  });
+
   it('binds PKCE attempts to the starting administrator end to end', async () => {
     const started = await startPOST(request('/api/orcarouter/connect/start', {
       method: 'POST',

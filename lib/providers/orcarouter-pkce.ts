@@ -31,7 +31,7 @@ import path from 'node:path';
 import { logger } from '../logger.js';
 import { open as openSecret, seal } from '../crypto/secret-box.js';
 import type { OrcaRouterOrigins } from './orcarouter.js';
-import { orcaRouterCredentialFence, orcaRouterStateDir } from './orcarouter-credentials.js';
+import { orcaRouterCredentialFence, orcaRouterStateDir, withOrcaRouterCredentialLock } from './orcarouter-credentials.js';
 
 export const ORCAROUTER_AUTHZ_PATH = '/auth';
 export const ORCAROUTER_EXCHANGE_PATH = '/api/v1/auth/keys';
@@ -44,11 +44,13 @@ export type OrcaRouterPkceErrorCode =
   | 'state_mismatch'
   | 'expired'
   | 'unknown_attempt'
+  | 'attempt_unreadable'
   | 'code_rejected'
   | 'invalid_grant_response'
   | 'scope_not_granted'
   | 'wrong_principal'
   | 'superseded'
+  | 'credential_busy'
   | 'cancelled'
   | 'rate_limited'
   | 'network_error'
@@ -141,15 +143,19 @@ function writePrivateJson(target: string, value: unknown): void {
   fs.renameSync(temporary, target);
 }
 
-function readAttempt(attemptId: string, stateDir?: string): PendingAttempt {
+function readAttempt(attemptId: string, stateDir?: string, strict = false): PendingAttempt {
   const target = attemptPath(attemptId, stateDir);
   let parsed: any;
   try {
     parsed = JSON.parse(fs.readFileSync(target, 'utf8'));
-  } catch {
+  } catch (error: any) {
+    if (strict && error?.code !== 'ENOENT') {
+      throw new OrcaRouterPkceError('attempt_unreadable', 'authorization attempt state is unavailable');
+    }
     throw new OrcaRouterPkceError('unknown_attempt', 'authorization attempt not found or already used');
   }
   if (!parsed || typeof parsed !== 'object' || parsed.attempt_id !== attemptId) {
+    if (strict) throw new OrcaRouterPkceError('attempt_unreadable', 'authorization attempt state is unavailable');
     throw new OrcaRouterPkceError('unknown_attempt', 'authorization attempt is malformed');
   }
   return parsed as PendingAttempt;
@@ -161,22 +167,25 @@ function readAttempt(attemptId: string, stateDir?: string): PendingAttempt {
  * a replay is refused by the consumed marker.
  */
 function consumeAttempt(attemptId: string, stateDir?: string): PendingAttempt {
-  const attempt = readAttempt(attemptId, stateDir);
-  if (attempt.consumed_at) {
-    throw new OrcaRouterPkceError('unknown_attempt', 'authorization attempt not found or already used');
-  }
-  const consumed: PendingAttempt = { ...attempt, consumed_at: new Date().toISOString() };
-  writePrivateJson(attemptPath(attemptId, stateDir), consumed);
-  return consumed;
+  return withOrcaRouterCredentialLock(stateDir, () => {
+    const attempt = readAttempt(attemptId, stateDir);
+    if (attempt.consumed_at) {
+      throw new OrcaRouterPkceError('unknown_attempt', 'authorization attempt not found or already used');
+    }
+    const consumed: PendingAttempt = { ...attempt, consumed_at: new Date().toISOString() };
+    writePrivateJson(attemptPath(attemptId, stateDir), consumed);
+    return consumed;
+  });
 }
 
 /** True while the consumed attempt is still on disk (i.e. not cancelled/completed). */
 function attemptStillLive(attemptId: string, stateDir?: string): boolean {
   try {
-    readAttempt(attemptId, stateDir);
+    readAttempt(attemptId, stateDir, true);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (error instanceof OrcaRouterPkceError && error.code === 'unknown_attempt') return false;
+    throw error;
   }
 }
 
@@ -185,6 +194,25 @@ function discardAttempt(attemptId: string, stateDir?: string): void {
     fs.unlinkSync(attemptPath(attemptId, stateDir));
   } catch {
     /* already gone */
+  }
+}
+
+/** Called synchronously by the credential store while it holds the shared lock. */
+function finalizeAttempt(attemptId: string, stateDir?: string): void {
+  let attempt: PendingAttempt;
+  try {
+    attempt = readAttempt(attemptId, stateDir, true);
+  } catch (error) {
+    if (error instanceof OrcaRouterPkceError && error.code === 'unknown_attempt') throw new Error('credential_cancelled');
+    throw error;
+  }
+  const expiry = Date.parse(attempt.expires_at);
+  if (!Number.isFinite(expiry) || expiry <= Date.now()) throw new Error('credential_expired');
+  try {
+    fs.unlinkSync(attemptPath(attemptId, stateDir));
+  } catch (error: any) {
+    if (error?.code === 'ENOENT') throw new Error('credential_cancelled');
+    throw new OrcaRouterPkceError('attempt_unreadable', 'authorization attempt state is unavailable');
   }
 }
 
@@ -275,10 +303,12 @@ export async function completeOrcaRouterAuthorization({
   principalId: string;
   fetchImpl?: typeof fetch;
   stateDir?: string;
+  /** Must invoke finalizeAttempt synchronously under the same credential lock before installation. */
   save: (
     key: string,
     scope: string,
     expectedGeneration: string,
+    finalizeAttempt: () => void,
   ) => Promise<{ masked: string; generation: string }>;
 }): Promise<CompletedAuthorization> {
   if (typeof code !== 'string' || !code.trim() || code.length > 4096) {
@@ -296,10 +326,18 @@ export async function completeOrcaRouterAuthorization({
   if (attempt.principal_id !== principalId) {
     throw new OrcaRouterPkceError('wrong_principal', 'this authorization attempt belongs to another administrator');
   }
-  consumeAttempt(attemptId, stateDir);
+  try {
+    consumeAttempt(attemptId, stateDir);
+  } catch (error: any) {
+    if (error?.message === 'credential_write_locked') {
+      throw new OrcaRouterPkceError('credential_busy', 'another credential update is in progress; retry the authorization');
+    }
+    throw error;
+  }
 
   try {
-    if (Date.parse(attempt.expires_at) <= Date.now()) {
+    const expiry = Date.parse(attempt.expires_at);
+    if (!Number.isFinite(expiry) || expiry <= Date.now()) {
       throw new OrcaRouterPkceError('expired', 'authorization window closed; start a new connection');
     }
     if (state != null && !safeStateEqual(String(state), String(attempt.state))) {
@@ -379,10 +417,19 @@ export async function completeOrcaRouterAuthorization({
     // approval is discarded rather than overwriting the newer key.
     let stored: { masked: string; generation: string };
     try {
-      stored = await save(key, grantedScope, attempt.credential_generation || 'none');
+      stored = await save(key, grantedScope, attempt.credential_generation || 'none', () => finalizeAttempt(attemptId, stateDir));
     } catch (error: any) {
       if (error?.message === 'credential_superseded') {
         throw new OrcaRouterPkceError('superseded', 'a newer OrcaRouter credential was stored while this approval was in flight');
+      }
+      if (error?.message === 'credential_write_locked') {
+        throw new OrcaRouterPkceError('credential_busy', 'another credential update is in progress; start a new authorization');
+      }
+      if (error?.message === 'credential_cancelled') {
+        throw new OrcaRouterPkceError('cancelled', 'authorization was cancelled before the key could be stored');
+      }
+      if (error?.message === 'credential_expired') {
+        throw new OrcaRouterPkceError('expired', 'authorization window closed before the key could be stored');
       }
       throw error;
     }
@@ -407,22 +454,25 @@ export function cancelOrcaRouterAuthorization(
   principalId: string,
   stateDir?: string,
 ): boolean {
-  let attempt: PendingAttempt;
-  try {
-    attempt = readAttempt(attemptId, stateDir);
-  } catch {
-    // Malformed or already-consumed ids are not worth an error; nothing is stored.
-    return false;
-  }
-  if (typeof attempt.principal_id !== 'string' || attempt.principal_id !== principalId) {
-    throw new OrcaRouterPkceError('wrong_principal', 'this authorization attempt belongs to another administrator');
-  }
-  try {
-    fs.unlinkSync(attemptPath(attemptId, stateDir));
-    return true;
-  } catch {
-    return false;
-  }
+  return withOrcaRouterCredentialLock(stateDir, () => {
+    let attempt: PendingAttempt;
+    try {
+      attempt = readAttempt(attemptId, stateDir, true);
+    } catch (error) {
+      if (error instanceof OrcaRouterPkceError && (error.code === 'unknown_attempt' || error.code === 'invalid_request')) return false;
+      throw error;
+    }
+    if (typeof attempt.principal_id !== 'string' || attempt.principal_id !== principalId) {
+      throw new OrcaRouterPkceError('wrong_principal', 'this authorization attempt belongs to another administrator');
+    }
+    try {
+      fs.unlinkSync(attemptPath(attemptId, stateDir));
+      return true;
+    } catch (error: any) {
+      if (error?.code === 'ENOENT') return false;
+      throw new OrcaRouterPkceError('attempt_unreadable', 'authorization attempt state is unavailable');
+    }
+  });
 }
 
 /** Number of live pending attempts (diagnostics and tests). */

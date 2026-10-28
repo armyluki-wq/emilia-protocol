@@ -21,6 +21,7 @@
  * Nothing in this module logs or returns a credential.
  */
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getOrcaRouterEnv } from '../env.js';
@@ -265,6 +266,21 @@ export interface DiscoverOptions {
 }
 
 const memoryCache = new Map<string, { at: number; models: OrcaRouterModel[] }>();
+const MAX_MEMORY_CATALOGS = 64;
+
+function rememberCatalog(identity: string, models: OrcaRouterModel[]): void {
+  const now = Date.now();
+  for (const [key, entry] of memoryCache) {
+    if (now - entry.at >= CATALOG_CACHE_TTL_MS) memoryCache.delete(key);
+  }
+  memoryCache.delete(identity);
+  while (memoryCache.size >= MAX_MEMORY_CATALOGS) {
+    const oldest = memoryCache.keys().next().value;
+    if (oldest === undefined) break;
+    memoryCache.delete(oldest);
+  }
+  memoryCache.set(identity, { at: now, models });
+}
 
 function stateDirectory(explicit?: string): string {
   const env = getOrcaRouterEnv();
@@ -275,22 +291,22 @@ function cachePath(stateDir: string, capability: string): string {
   return path.join(stateDir, `catalog-${capability}.json`);
 }
 
-function readLastKnownGood(stateDir: string, capability: OrcaRoutCapability): OrcaRouterModel[] | null {
+function readLastKnownGood(stateDir: string, capability: OrcaRoutCapability, identity: string): OrcaRouterModel[] | null {
   try {
     const parsed = JSON.parse(fs.readFileSync(cachePath(stateDir, capability), 'utf8'));
-    if (!Array.isArray(parsed?.models)) return null;
+    if (parsed?.identity !== identity || !Array.isArray(parsed?.models)) return null;
     return parsed.models.map((item: any) => normalizeModel(item, capability)).filter(Boolean) as OrcaRouterModel[];
   } catch {
     return null;
   }
 }
 
-function writeLastKnownGood(stateDir: string, capability: OrcaRoutCapability, models: OrcaRouterModel[]): void {
+function writeLastKnownGood(stateDir: string, capability: OrcaRoutCapability, identity: string, models: OrcaRouterModel[]): void {
   try {
     fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
     const target = cachePath(stateDir, capability);
     const temporary = `${target}.${process.pid}.tmp`;
-    fs.writeFileSync(temporary, JSON.stringify({ capability, models, at: new Date().toISOString() }), {
+    fs.writeFileSync(temporary, JSON.stringify({ capability, identity, models, at: new Date().toISOString() }), {
       encoding: 'utf8',
       mode: 0o600,
     });
@@ -439,9 +455,15 @@ export async function discoverOrcaRouterModels(options: DiscoverOptions = {}): P
     : null);
   const allowSeed = options.allowSeed !== false;
   const stateDir = stateDirectory(options.stateDir);
+  // A generation alone is insufficient: environment credentials use `env`.
+  // Persist only this digest, never the key. Legacy unbound caches are ignored.
+  const identity = crypto.createHash('sha256').update(JSON.stringify([
+    path.resolve(stateDir), origins.api, capability,
+    credential?.source, credential?.generation, credential?.key,
+  ])).digest('hex');
 
   const degraded = (error: string): OrcaRouterCatalog => {
-    const lastKnown = options.useCache === false ? null : readLastKnownGood(stateDir, capability);
+    const lastKnown = options.useCache === false ? null : readLastKnownGood(stateDir, capability, identity);
     if (lastKnown && lastKnown.length) {
       const filtered = lastKnown.filter((model) => modelMatches(model, capability, options.modality));
       if (filtered.length) {
@@ -458,7 +480,7 @@ export async function discoverOrcaRouterModels(options: DiscoverOptions = {}): P
   if (!credential?.key) return degraded('not_configured');
 
   if (options.useCache !== false) {
-    const cached = memoryCache.get(capability);
+    const cached = memoryCache.get(identity);
     if (cached && Date.now() - cached.at < CATALOG_CACHE_TTL_MS) {
       return {
         models: cached.models.filter((model) => modelMatches(model, capability, options.modality)),
@@ -503,8 +525,8 @@ export async function discoverOrcaRouterModels(options: DiscoverOptions = {}): P
           model !== null && modelMatches(model, capability)),
     );
     if (!complete.length) return degraded('catalog_empty');
-    memoryCache.set(capability, { at: Date.now(), models: complete });
-    if (options.useCache !== false) writeLastKnownGood(stateDir, capability, complete);
+    rememberCatalog(identity, complete);
+    if (options.useCache !== false) writeLastKnownGood(stateDir, capability, identity, complete);
     return {
       models: complete.filter((model) => modelMatches(model, capability, options.modality)),
       capability,

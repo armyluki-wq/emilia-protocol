@@ -39,7 +39,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const credential = await saveOrcaRouterApiKey(parsed.value.api_key);
     return NextResponse.json({ credential }, { status: 201, headers: NO_STORE });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === 'credential_write_locked') {
+      return epProblem(409, 'credential_busy', 'Another credential update is in progress');
+    }
     return epProblem(503, 'credential_write_failed', 'Could not store the OrcaRouter credential');
   }
 }
@@ -53,7 +56,10 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   try {
     const credential = await clearOrcaRouterCredential();
     return NextResponse.json({ credential }, { headers: NO_STORE });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === 'credential_write_locked') {
+      return epProblem(409, 'credential_busy', 'Another credential update is in progress');
+    }
     return epProblem(503, 'credential_write_failed', 'Could not clear the OrcaRouter credential');
   }
 }

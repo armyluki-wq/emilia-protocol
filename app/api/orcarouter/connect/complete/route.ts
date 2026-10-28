@@ -28,12 +28,14 @@ export const runtime = 'nodejs';
 const STATUS_BY_CODE: Record<string, number> = {
   invalid_request: 400,
   unknown_attempt: 404,
+  attempt_unreadable: 503,
   expired: 410,
   state_mismatch: 400,
   code_rejected: 403,
   scope_not_granted: 403,
   wrong_principal: 403,
   superseded: 409,
+  credential_busy: 409,
   cancelled: 409,
   rate_limited: 429,
   network_error: 502,
@@ -64,10 +66,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       code,
       state: typeof state === 'string' ? state : null,
       principalId: guard.admin.reviewerId,
-      save: async (key, scope, expectedGeneration) => {
+      save: async (key, scope, expectedGeneration, finalizeAttempt) => {
         // Fenced against the generation captured when this administrator
         // started the attempt. The check and the write are synchronous.
-        const status = saveOrcaRouterPkceKeyIfCurrent(key, scope, expectedGeneration);
+        const status = saveOrcaRouterPkceKeyIfCurrent(key, scope, expectedGeneration, undefined, finalizeAttempt);
         return {
           masked: status.masked ?? ORCAROUTER_MASKED_KEY,
           generation: status.generation || '',

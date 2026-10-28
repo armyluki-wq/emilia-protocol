@@ -6,15 +6,18 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import crypto from 'node:crypto';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { AddressInfo } from 'node:net';
 
 import {
   ORCAROUTER_AUTHZ_PATH,
   ORCAROUTER_EXCHANGE_PATH,
+  ORCAROUTER_PKCE_ATTEMPT_TTL_MS,
   OrcaRouterPkceError,
   cancelOrcaRouterAuthorization,
   completeOrcaRouterAuthorization,
@@ -24,6 +27,7 @@ import {
   startOrcaRouterAuthorization,
 } from '../lib/providers/orcarouter-pkce.js';
 import { logger } from '../lib/logger.js';
+import { saveOrcaRouterPkceKeyIfCurrent } from '../lib/providers/orcarouter-credentials.js';
 
 const KEY = 'sk-orca-pkceissued1234567890';
 
@@ -153,7 +157,7 @@ describe('OrcaRouter PKCE adapter', () => {
     expect(recorded[0].body).not.toHaveProperty('client_secret');
     expect(recorded[0].body).not.toHaveProperty('redirect_uri');
 
-    expect(save).toHaveBeenCalledWith(KEY, 'api', expect.any(String));
+    expect(save).toHaveBeenCalledWith(KEY, 'api', expect.any(String), expect.any(Function));
     expect(completed).toEqual({ source: 'pkce', masked: 'sk-orca-…', scope: 'api', generation: 'gen-1' });
     expect(pendingOrcaRouterAuthorizations(stateDir)).toBe(0);
   });
@@ -389,7 +393,7 @@ describe('OrcaRouter PKCE adapter', () => {
       stateDir,
       save: rejecting,
     })).rejects.toMatchObject({ code: 'superseded' });
-    expect(rejecting).toHaveBeenCalledWith(KEY, 'api', pending.credential_generation);
+    expect(rejecting).toHaveBeenCalledWith(KEY, 'api', pending.credential_generation, expect.any(Function));
   });
 
   it('refuses cancellation by another administrator', async () => {
@@ -434,5 +438,169 @@ describe('OrcaRouter PKCE adapter', () => {
     await expect(completion).rejects.toMatchObject({ code: 'cancelled' });
     expect(saving).not.toHaveBeenCalled();
     expect(pendingOrcaRouterAuthorizations(stateDir)).toBe(0);
+  });
+
+  it('refuses storage when another process cancels after the live check but before the write', async () => {
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
+    const pending = readPending(started.attempt_id);
+    const moduleUrl = pathToFileURL(path.join(process.cwd(), 'lib/providers/orcarouter-pkce.js')).href;
+    const program = `import { cancelOrcaRouterAuthorization } from ${JSON.stringify(moduleUrl)};
+      process.stdout.write(String(cancelOrcaRouterAuthorization(process.argv[1], 'admin-a', process.argv[2])));`;
+    const cancelled = () => new Promise<string>((resolve, reject) => {
+      const child = spawn(process.execPath, ['--input-type=module', '-e', program, started.attempt_id, stateDir], {
+        env: { NODE_ENV: 'test', EP_SECRET_KEY: '1'.repeat(64) }, stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      let output = '';
+      let error = '';
+      child.stdout.on('data', (chunk) => { output += chunk; });
+      child.stderr.on('data', (chunk) => { error += chunk; });
+      child.on('error', reject);
+      child.on('exit', (code) => code === 0 ? resolve(output) : reject(new Error(error)));
+    });
+    const saving = vi.fn(async (key: string, scope: string, fence: string, finalize?: () => void) => {
+      // This callback is reached after attemptStillLive() and before the write.
+      expect(await cancelled()).toBe('true');
+      const stored = saveOrcaRouterPkceKeyIfCurrent(key, scope, fence, stateDir, finalize);
+      return { masked: stored.masked, generation: stored.generation };
+    });
+    await expect(completeOrcaRouterAuthorization({
+      origins: { auth: origin, api: 'https://api.example.test/v1' },
+      attemptId: started.attempt_id,
+      code: 'displayed-code',
+      state: pending.state,
+      principalId: 'admin-a',
+      stateDir,
+      save: saving,
+    })).rejects.toMatchObject({ code: 'cancelled' });
+    expect(saving).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(path.join(stateDir, 'credential.json'))).toBe(false);
+  });
+
+  it('allows only one process to exchange a single local attempt', async () => {
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
+    const moduleUrl = pathToFileURL(path.join(process.cwd(), 'lib/providers/orcarouter-pkce.js')).href;
+    const release = path.join(stateDir, 'release-exchange-test');
+    const exchanges = path.join(stateDir, 'exchange-count-test');
+    const pending = pendingPath(started.attempt_id);
+    const program = `import fs from 'node:fs';
+      import { completeOrcaRouterAuthorization } from ${JSON.stringify(moduleUrl)};
+      const [id, dir, release, exchanges, pending] = process.argv.slice(1);
+      const originalRead = fs.readFileSync.bind(fs);
+      let reads = 0;
+      fs.readFileSync = function (file, ...args) {
+        const result = originalRead(file, ...args);
+        if (String(file) === pending && ++reads === 2) {
+          process.stdout.write('READY\\n');
+          const clock = new Int32Array(new SharedArrayBuffer(4));
+          const deadline = Date.now() + 8000;
+          while (!fs.existsSync(release) && Date.now() < deadline) Atomics.wait(clock, 0, 0, 10);
+          if (!fs.existsSync(release)) throw new Error('test release timed out');
+        }
+        return result;
+      };
+      const fetchImpl = async () => {
+        fs.appendFileSync(exchanges, 'exchange\\n');
+        return new Response(JSON.stringify({ key: 'sk-orca-concurrentfixture1234', scope: 'api' }), { status: 200 });
+      };
+      try {
+        await completeOrcaRouterAuthorization({ origins: { auth: 'https://auth.example.test', api: 'https://api.example.test' },
+          attemptId: id, code: 'fixture', principalId: 'admin-a', stateDir: dir, fetchImpl,
+          save: async () => ({ masked: 'sk-orca-…', generation: 'fixture' }) });
+        process.stdout.write('DONE:success\\n');
+      } catch (error) { process.stdout.write('DONE:' + (error.code || error.message) + '\\n'); }`;
+    const launch = () => {
+      const child = spawn(process.execPath, ['--input-type=module', '-e', program, started.attempt_id, stateDir, release, exchanges, pending], {
+        env: { NODE_ENV: 'test', EP_SECRET_KEY: '1'.repeat(64) }, stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      let output = '';
+      let errors = '';
+      let signal!: () => void;
+      const ready = new Promise<void>((resolve) => { signal = resolve; });
+      child.stdout.on('data', (chunk) => { output += chunk; if (output.includes('READY\n')) signal(); });
+      child.stderr.on('data', (chunk) => { errors += chunk; });
+      const done = new Promise<string>((resolve, reject) => {
+        child.on('error', reject);
+        child.on('exit', (code) => code === 0 ? resolve(output) : reject(new Error(errors)));
+      });
+      return { child, ready, done };
+    };
+    const first = launch();
+    let second: ReturnType<typeof launch> | undefined;
+    try {
+      await Promise.race([first.ready, first.done.then(() => { throw new Error('first process ended before the fence'); })]);
+      second = launch();
+      await Promise.race([second.ready, second.done]);
+      fs.writeFileSync(release, 'continue');
+      await Promise.all([first.done, second.done]);
+      expect(fs.readFileSync(exchanges, 'utf8').trim().split('\n')).toHaveLength(1);
+    } finally {
+      fs.writeFileSync(release, 'continue');
+      first.child.kill();
+      second?.child.kill();
+    }
+  }, 12000);
+
+  it('refuses local installation when the provider reply arrives after expiry', async () => {
+    const initialTime = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(initialTime);
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
+    const pending = readPending(started.attempt_id);
+    const exchange = vi.fn(async () => {
+      clock.mockReturnValue(initialTime + ORCAROUTER_PKCE_ATTEMPT_TTL_MS + 1);
+      return new Response(JSON.stringify({ key: KEY, scope: 'api' }), { status: 200 });
+    });
+    const saveKey = async (key: string, scope: string, fence: string, finalize: () => void) => {
+      const stored = saveOrcaRouterPkceKeyIfCurrent(key, scope, fence, stateDir, finalize);
+      return { masked: stored.masked || '', generation: stored.generation || '' };
+    };
+    await expect(completeOrcaRouterAuthorization({
+      origins: { auth: origin, api: 'https://api.example.test/v1' },
+      attemptId: started.attempt_id, code: 'fixture', state: pending.state,
+      principalId: 'admin-a', stateDir, fetchImpl: exchange as any, save: saveKey,
+    })).rejects.toMatchObject({ code: 'expired' });
+    expect(exchange).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(path.join(stateDir, 'credential.json'))).toBe(false);
+    expect(pendingOrcaRouterAuthorizations(stateDir)).toBe(0);
+  });
+
+  it('refuses a malformed expiry before contacting the provider', async () => {
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
+    const pending = readPending(started.attempt_id);
+    fs.writeFileSync(pendingPath(started.attempt_id), JSON.stringify({ ...pending, expires_at: 'not-a-time' }));
+    const exchange = vi.fn();
+    await expect(completeOrcaRouterAuthorization({
+      origins: { auth: origin, api: 'https://api.example.test/v1' },
+      attemptId: started.attempt_id, code: 'fixture', principalId: 'admin-a',
+      stateDir, fetchImpl: exchange as any, save,
+    })).rejects.toMatchObject({ code: 'expired' });
+    expect(exchange).not.toHaveBeenCalled();
+  });
+
+  it('does not report installation success after an exchange and storage failure', async () => {
+    const started = await startOrcaRouterAuthorization({ origins: { auth: origin, api: 'https://api.example.test/v1' }, principalId: 'admin-a', stateDir });
+    const pending = readPending(started.attempt_id);
+    const originalWrite = fs.writeFileSync.bind(fs);
+    const saving = vi.fn(async (key: string, scope: string, fence: string, finalize: () => void) => {
+      vi.spyOn(fs, 'writeFileSync').mockImplementation(((file: fs.PathOrFileDescriptor, ...args: any[]) => {
+        if (String(file).includes('credential.json.')) throw new Error('simulated_storage_failure');
+        return (originalWrite as any)(file, ...args);
+      }) as typeof fs.writeFileSync);
+      const stored = saveOrcaRouterPkceKeyIfCurrent(key, scope, fence, stateDir, finalize);
+      return { masked: stored.masked || '', generation: stored.generation || '' };
+    });
+    await expect(completeOrcaRouterAuthorization({
+      origins: { auth: origin, api: 'https://api.example.test/v1' },
+      attemptId: started.attempt_id,
+      code: 'displayed-code',
+      state: pending.state,
+      principalId: 'admin-a',
+      stateDir,
+      save: saving,
+    })).rejects.toThrow('simulated_storage_failure');
+    expect(recorded).toHaveLength(1);
+    expect(fs.existsSync(path.join(stateDir, 'credential.json'))).toBe(false);
+    expect(fs.existsSync(path.join(stateDir, 'credential.lock'))).toBe(false);
+    expect(pendingOrcaRouterAuthorizations(stateDir)).toBe(0);
+    expect(cancelOrcaRouterAuthorization(started.attempt_id, 'admin-a', stateDir)).toBe(false);
   });
 });

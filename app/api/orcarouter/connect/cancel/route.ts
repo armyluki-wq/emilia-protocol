@@ -33,10 +33,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const cancelled = cancelOrcaRouterAuthorization(attemptId, guard.admin.reviewerId);
     return NextResponse.json({ cancelled }, { headers: NO_STORE });
   } catch (error: any) {
+    if (error?.message === 'credential_write_locked') {
+      return epProblem(409, 'credential_busy', 'Another credential update is in progress');
+    }
     if (error?.code === 'wrong_principal') {
       return epProblem(403, 'wrong_principal', error.message);
     }
-    // An unparseable id is not worth a 500; nothing was stored under it.
-    return NextResponse.json({ cancelled: false }, { headers: NO_STORE });
+    if (error?.code === 'attempt_unreadable') {
+      return epProblem(503, 'attempt_unreadable', 'Could not confirm the authorization state');
+    }
+    return epProblem(503, 'cancel_failed', 'Could not confirm cancellation');
   }
 }

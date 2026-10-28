@@ -184,3 +184,48 @@ settings surface. The provider key is separately required for the real catalog
 and configured-credential assertions. The live-provider evidence run was not
 performed as part of the credential-free CI wiring repair. To inspect either
 suite without starting browsers or making provider calls, use `--list`.
+
+### Credential write recovery and catalog identity
+
+Credential writers require an exclusive create/rename-capable local filesystem.
+All API-key saves, deletes, fenced PKCE writes and reauthentication marks share
+`credential.lock`. Contention fails closed without retrying or stealing the
+lock. A process crash may leave the lock in place. Before manually removing a
+leftover lock, stop every process using this state directory and confirm no
+writer remains. Do not use this file store as a distributed/NFS credential
+service. Deleting `credential-revision.json` while pending attempts exist is
+unsupported: retain that monotonic revision through credential deletion and
+backup/restore recovery. These files are process-crash fencing, not a claim of
+power-loss durability or protection from an administrator rolling back state.
+Key save, delete, cancellation, and authorization completion return HTTP 409
+on lock contention. If contention arises before an attempt is reserved, the
+same attempt may be retried. If it arises after the provider exchange, the
+attempt has been consumed and a new authorization is required.
+
+Cancellation and the final check and credential installation share this lock;
+the provider exchange does not hold it. The expiry is checked again immediately
+before installation, and malformed or expired timestamps fail closed. A successful cancellation before
+installation prevents the local credential write, but it cannot revoke a key
+the provider may already have issued. A crash or storage error after the
+exchange can likewise leave an issued key uninstalled. Operators must use the
+provider's controls to investigate and revoke any orphaned key; this flow does
+not establish provider-side exactly-once issuance or revocation.
+These cancellation guarantees apply to the route wired to the local credential
+store. Any other adapter supplying a save callback must invoke the finalizer
+synchronously while holding the same lock immediately before installation.
+The UI's expiry and pagehide requests are best effort. A plain component unmount
+only clears local UI state and does not itself confirm server cancellation.
+An unreadable attempt or cancellation I/O error is reported as unconfirmed,
+rather than as an already-ended attempt.
+
+Authorization-start capture is not serialized with a concurrent credential
+mutation. Overlapping operations can be ordered on either side of each other:
+if the captured identity and revision differ from the completion-time state,
+completion is refused; if they match the final state, the overlapping start
+can be treated as occurring after the mutation. The fence prevents an attempt
+that completed its start before a later save and delete from being revived.
+
+The catalog cache and its last-known-good snapshot are scoped to the API origin,
+state directory, capability and exact credential identity/generation. Existing
+unbound catalog files are ignored until refreshed. A seed or last-known-good
+fallback remains degraded and cannot authorize a new model selection.
