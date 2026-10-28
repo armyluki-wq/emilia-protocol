@@ -3,8 +3,8 @@
   "claim_scope": "source-free current-bundle conformance input; independent construction acceptance requires a separate trusted-attestor signature",
   "source_manifest": {
     "path": "conformance/conformance-manifest.json",
-    "sha256": "c6fe32432c9d9e7c58981f1261e5af95497ecf63b0b60cf59ddab6bb9540e095",
-    "manifest_sha256": "f06d9e7104c9d1b7e7de069ac709637fe212cf537a3db6d89f72e8acbb01797b"
+    "sha256": "1b64c69f5b52717ca991e7df01fb7dae7cbe2b9a8841facadc8ac8074d2e4f2c",
+    "manifest_sha256": "02f52bff0657493539cc71d594d1cd8db859e3845f90e4713f55aec0c43f3656"
   },
   "runner_protocol": {
     "version": "EP-CONFORMANCE-FILE-RUNNER-v2",

@@ -498,6 +498,19 @@ not merely `valid`; authentic negative outcomes are evidence and never authority
 
 Returns `{ valid, authorizes_action, outcome, requires_successor, checks, reason? }`.
 
+### Experimental `verifyBme04ResolutionReceipt(rawReceipt, opts)`
+
+The opt-in `@emilia-protocol/verify/resolution-bme04` entry point implements
+`EP-RESOLUTION-BME04-v1` against published binding-moment-envelope -04. It
+checks the native envelope, per-option action digest, native resolution and
+P-256 WebAuthn evidence. Raw JSON, independently pinned profile/revision/mapping,
+role key, RP ID and origins are required. Actual-action, nonce, initiator and
+time inputs are additionally required for `authorizes_action: true`.
+
+This source addition is not yet a package release. It does not alter v1 or
+opt Gate into the profile. See [the exact contract](../../docs/EP-RESOLUTION-BME04-CONTRACT.md)
+for examples, parser/time limits and the separate consumption requirement.
+
 ### `verifyTrustReceipt(receipt, { approverKeys, logPublicKey, now })`
 
 > **Authenticity is not admission or replay prevention.** This pure offline

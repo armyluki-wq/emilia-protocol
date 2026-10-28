@@ -811,6 +811,7 @@ packages/verify/pq-signature-agility.test.js linguist-generated=true
 packages/verify/provenance-v2.test.js linguist-generated=true
 packages/verify/quorum.test.js linguist-generated=true
 packages/verify/receipt-selective-disclosure.test.js linguist-generated=true
+packages/verify/resolution-bme04.test.js linguist-generated=true
 packages/verify/resolution.test.js linguist-generated=true
 packages/verify/revocation-v2.test.js linguist-generated=true
 packages/verify/revocation.test.js linguist-generated=true

@@ -7,7 +7,9 @@ frozen EP-RECEIPT-v1 or EP-SIGNOFF-v1 formats. It supplies a concrete durable
 resolution object for the transient `binding_moment` defined by
 `draft-morrison-binding-moment-envelope-02`, an active individual Internet-Draft
 and work in progress. Revision -02 was the current published revision when this
-document was checked on 2026-09-11.
+document was checked on 2026-09-11. The source has since published -04; this
+v1 profile remains pinned to -02. The separate opt-in -04 implementation is
+described in [the BME-04 contract](EP-RESOLUTION-BME04-CONTRACT.md).
 
 Implementation: `packages/verify/resolution.js` (JavaScript),
 `packages/python-verify/emilia_verify/__init__.py` (Python), and
@@ -17,7 +19,7 @@ Implementation: `packages/verify/resolution.js` (JavaScript),
 ## 1. Composition boundary
 
 The binding-moment envelope owns the question: the briefing, answer space,
-recommendation, and two escape hatches. Its current Section 7.3 requires the
+recommendation, and two escape hatches. Revision -02 Section 7.3 requires the
 returned resolution to distinguish option selection, answer-space revision, and
 question-space rejection, and defines the returned resolution object. It does
 not define EP's durable device-signed evidence record or a native `declined`
@@ -27,9 +29,8 @@ The published -02 keeps the -01 option shape: each option has `label` and
 `reasoning`, but no `action_digest`. It also keeps the three-way resolution
 `option | answer | question`; it does not publish native `declined`. Candidate
 text posted in emiliaprotocol/emilia-protocol issue #380 proposed both changes,
-but candidate issue text is not a wire specification. This profile therefore
-continues to verify the published -02 grammar and does not silently admit those
-members under the -02 name.
+and the published -04 now defines them. This v1 profile continues to verify the
+-02 grammar and does not silently admit those members under the -02 name.
 
 EP-RESOLUTION-v1 owns the durable evidence: which role-pinned principal key
 resolved the exact envelope, for which exact action, under which WebAuthn RP ID,
@@ -194,36 +195,28 @@ Display attestation, trusted time, revocation currency, quorum, and one-time
 consumption remain separate EP evidence or enforcement layers. They compose;
 this profile does not collapse them into the resolution record.
 
-## 8. Upstream candidate and version gate
+## 8. Published -04 and the version gate
 
-Issue #380 records candidate upstream text that adds an `action_digest` to each
-option and a bare `declined` resolution. On 2026-09-26, the upstream author
-confirmed those changes are intended for -04; the imminent -03 is an
-Implementation Status correction and does not carry them. That sequencing is
-not a published wire contract. The candidate would let a verifier
-compare the selected option's digest directly with the exact action under
-consideration, without trusting `expectedSelectedOption`. That is the intended
-replacement for the interim local option map.
+The upstream author published
+[binding-moment-envelope -04](https://www.ietf.org/archive/id/draft-morrison-binding-moment-envelope-04.txt)
+on 2026-10-13. It defines mandatory per-option `action_digest`, envelope-bound
+native `declined`, and integer-only JCS. Section 5.6 requires any mapping to EP's
+action digest to be explicitly pinned; an automatic equivalence is unsafe.
 
-The candidate is not present in published binding-moment-envelope -02. Until a
-published revision, or a separately named and versioned interoperability
-profile, defines that wire shape, implementations of EP-RESOLUTION-v1 MUST keep
-the local `expectedSelectedOption` check and MUST reject `action_digest` as an
-unknown option member under the -02 grammar. Native `declined` in
-EP-RESOLUTION-v1 remains an EMILIA durable-evidence outcome; it MUST NOT be
-described as a native -02 envelope resolution.
+`EP-RESOLUTION-v1` remains unchanged. It MUST retain the local
+`expectedSelectedOption` check and reject `action_digest` under the -02 option
+grammar. Native `declined` in v1 remains an EMILIA durable-evidence outcome and
+MUST NOT be described as a native -02 envelope resolution.
 
-When an upstream revision publishes the candidate shape, migration requires a
-new explicit source-envelope revision or profile identifier, positive and
-negative vectors across all supported verifiers, and refusal of cross-version
-downgrade. At minimum, the negative cases must cover a missing option digest, a
-malformed digest, a substituted digest, and a selected index whose option
-digest differs from the action the executor is about to perform. Publishing the
-upstream draft and implementing that new local profile remain separate gates.
+The separate experimental `EP-RESOLUTION-BME04-v1` profile, signed context
+`ep.resolution.bme04.v1`, and opt-in API consume the published -04 shape with
+`BME04-JCS-ACTION-v1`. They preserve valid selection evidence when the actual
+action differs, but never authorize that different action. Decline never grants
+authority. Caller policy must independently admit the profile, source and mapping.
 
-Today the JavaScript, Python, and Go v1 tests explicitly refuse a supplied
-`action_digest` on a -02 option, even when it equals the expected action, and
-refuse a receipt relabeled as the unpublished candidate profile. These tests
-protect the old boundary; they are not a claim that the future -04 shape works.
-The candidate acceptance contract and remaining gates are in
-`docs/EP-RESOLUTION-BME04-CANDIDATE.md`.
+See [the exact BME-04 contract](EP-RESOLUTION-BME04-CONTRACT.md) for raw JSON,
+algorithm, time, trust and replay boundaries. Its separate shared suite is
+`conformance/vectors/resolution.bme04.v1.json`; v1 fixtures remain stable. These
+are bounded source interoperability checks for that mapping, not general BME-04
+interoperability, a package-release claim, or proof of provider-side consumption.
+The existing Gate does not automatically opt into the new profile.

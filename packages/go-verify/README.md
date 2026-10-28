@@ -88,3 +88,17 @@ supported release path.
 ## License
 
 Apache-2.0
+
+
+## Experimental BME-04 resolution profile
+
+`VerifyBME04ResolutionReceipt(rawReceipt, BME04ResolutionOptions)` provides a separate opt-in
+`EP-RESOLUTION-BME04-v1` verifier for published binding-moment-envelope -04.
+It consumes raw JSON, checks exact per-option action binding and native decline,
+and admits only P-256/ES256. Independently configured profile, source, mapping,
+role key and WebAuthn pins are required. A valid historical record never grants
+authority without the actual action, nonce, initiator and evaluation time.
+
+Existing v1 behavior is unchanged. This source addition is not yet a package
+release or automatic Gate integration. See [the exact contract](../../docs/EP-RESOLUTION-BME04-CONTRACT.md)
+for inputs, parser/time limits, tests, and required caller-side atomic consumption.

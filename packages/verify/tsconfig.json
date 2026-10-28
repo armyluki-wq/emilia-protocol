@@ -40,6 +40,7 @@
     "src/provenance.ts",
     "src/federation.ts",
     "src/resolution.ts",
+    "src/resolution-bme04.ts",
     "src/consent-grant.ts",
     "src/document-action-binding.ts",
     "src/outcome-binding.ts",
