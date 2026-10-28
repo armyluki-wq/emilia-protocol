@@ -1,0 +1,14 @@
+{
+  "format": "emilia-gargoyle-interop-source-v1",
+  "upstream_repository": "https://github.com/Elyon-Sol/Gargoyle",
+  "upstream_commit": "f2335aa5951dd878b99b9c983ed6396c83bfa42f",
+  "upstream_path": "docs/interop-emilia/gargoyle-emilia-live-redacted.v1.json",
+  "fixture_sha256": "a24bb7ec01a2a6523066d3c5a04c3108b333b142223eb3f0f89f78ebc763ab79",
+  "fixture_local_path": "gargoyle-emilia-live-redacted.v1.json",
+  "license": "Apache-2.0",
+  "upstream_notice": "Copyright 2026 Justin LaPorte",
+  "original_fixture_modified": false,
+  "recorded_verifier_commit": "3f712d28b2cf624342bd98c4172e1a574b39644b",
+  "source_issue": "https://github.com/emiliaprotocol/emilia-protocol/issues/924",
+  "scope": "One public Class B receipt fixture, redacted and re-signed upstream with throwaway keys. Local JS/Python verification and four one-field tamper cases only."
+}

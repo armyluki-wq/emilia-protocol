@@ -1,0 +1,302 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 97 and seed -4190595404582820093 with 1 worker on 18 cores with 491MB heap and 64MB offheap memory [pid: 25666] (Mac OS X 27.0.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/imanschrock/Documents/GitHub.nosync/emilia-issue906-two-world-20261027/formal/ep_replay_history_twoworld.tla
+Parsing file /private/var/folders/qd/sgs5gg_56ll79z_2rxfg3pn00000gn/T/Naturals.tla
+Parsing file /private/var/folders/qd/sgs5gg_56ll79z_2rxfg3pn00000gn/T/TLC.tla
+Parsing file /private/var/folders/qd/sgs5gg_56ll79z_2rxfg3pn00000gn/T/Sequences.tla
+Parsing file /private/var/folders/qd/sgs5gg_56ll79z_2rxfg3pn00000gn/T/FiniteSets.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module ep_replay_history_twoworld
+Starting... (2026-10-27 20:39:06)
+Implied-temporal checking--satisfiability problem has 1 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-27 20:39:06.
+Error: Invariant ReplaySafe is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ worlds = [ H0 |->
+      [ phase |-> "INITIAL",
+        log |-> FALSE,
+        checkpoint |-> FALSE,
+        dispatch |-> FALSE,
+        terminal |-> FALSE,
+        frontier |-> 0,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "COMPLETE",
+        continuity |-> TRUE,
+        receipt |-> FALSE,
+        actualCalls |-> 0,
+        everConsumed |-> FALSE,
+        recoveryCalls |-> 0 ],
+  H1 |->
+      [ phase |-> "INITIAL",
+        log |-> FALSE,
+        checkpoint |-> FALSE,
+        dispatch |-> FALSE,
+        terminal |-> FALSE,
+        frontier |-> 0,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "COMPLETE",
+        continuity |-> TRUE,
+        receipt |-> FALSE,
+        actualCalls |-> 0,
+        everConsumed |-> FALSE,
+        recoveryCalls |-> 0 ] ]
+/\ decision = "NONE"
+/\ compared = FALSE
+
+State 2: <ConsumeH1 line 18, col 3 to line 23, col 37 of module ep_replay_history_twoworld>
+/\ worlds = [ H0 |->
+      [ phase |-> "INITIAL",
+        log |-> FALSE,
+        checkpoint |-> FALSE,
+        dispatch |-> FALSE,
+        terminal |-> FALSE,
+        frontier |-> 0,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "COMPLETE",
+        continuity |-> TRUE,
+        receipt |-> FALSE,
+        actualCalls |-> 0,
+        everConsumed |-> FALSE,
+        recoveryCalls |-> 0 ],
+  H1 |->
+      [ phase |-> "CONSUMED",
+        log |-> TRUE,
+        checkpoint |-> TRUE,
+        dispatch |-> FALSE,
+        terminal |-> FALSE,
+        frontier |-> 1,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "COMPLETE",
+        continuity |-> TRUE,
+        receipt |-> TRUE,
+        actualCalls |-> 0,
+        everConsumed |-> TRUE,
+        recoveryCalls |-> 0 ] ]
+/\ decision = "NONE"
+/\ compared = FALSE
+
+State 3: <EnterH1 line 25, col 3 to line 29, col 37 of module ep_replay_history_twoworld>
+/\ worlds = [ H0 |->
+      [ phase |-> "INITIAL",
+        log |-> FALSE,
+        checkpoint |-> FALSE,
+        dispatch |-> FALSE,
+        terminal |-> FALSE,
+        frontier |-> 0,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "COMPLETE",
+        continuity |-> TRUE,
+        receipt |-> FALSE,
+        actualCalls |-> 0,
+        everConsumed |-> FALSE,
+        recoveryCalls |-> 0 ],
+  H1 |->
+      [ phase |-> "ENTERED",
+        log |-> TRUE,
+        checkpoint |-> TRUE,
+        dispatch |-> TRUE,
+        terminal |-> TRUE,
+        frontier |-> 1,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "COMPLETE",
+        continuity |-> TRUE,
+        receipt |-> FALSE,
+        actualCalls |-> 1,
+        everConsumed |-> TRUE,
+        recoveryCalls |-> 0 ] ]
+/\ decision = "NONE"
+/\ compared = FALSE
+
+State 4: <Crash line 33, col 3 to line 40, col 37 of module ep_replay_history_twoworld>
+/\ worlds = [ H0 |->
+      [ phase |-> "RECOVERED",
+        log |-> FALSE,
+        checkpoint |-> FALSE,
+        dispatch |-> FALSE,
+        terminal |-> FALSE,
+        frontier |-> 0,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "INCOMPLETE",
+        continuity |-> FALSE,
+        receipt |-> FALSE,
+        actualCalls |-> 0,
+        everConsumed |-> FALSE,
+        recoveryCalls |-> 0 ],
+  H1 |->
+      [ phase |-> "ENTERED",
+        log |-> TRUE,
+        checkpoint |-> TRUE,
+        dispatch |-> TRUE,
+        terminal |-> TRUE,
+        frontier |-> 1,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "COMPLETE",
+        continuity |-> TRUE,
+        receipt |-> FALSE,
+        actualCalls |-> 1,
+        everConsumed |-> TRUE,
+        recoveryCalls |-> 0 ] ]
+/\ decision = "NONE"
+/\ compared = FALSE
+
+State 5: <Crash line 33, col 3 to line 40, col 37 of module ep_replay_history_twoworld>
+/\ worlds = [ H0 |->
+      [ phase |-> "RECOVERED",
+        log |-> FALSE,
+        checkpoint |-> FALSE,
+        dispatch |-> FALSE,
+        terminal |-> FALSE,
+        frontier |-> 0,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "INCOMPLETE",
+        continuity |-> FALSE,
+        receipt |-> FALSE,
+        actualCalls |-> 0,
+        everConsumed |-> FALSE,
+        recoveryCalls |-> 0 ],
+  H1 |->
+      [ phase |-> "RECOVERED",
+        log |-> FALSE,
+        checkpoint |-> FALSE,
+        dispatch |-> FALSE,
+        terminal |-> FALSE,
+        frontier |-> 0,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "INCOMPLETE",
+        continuity |-> FALSE,
+        receipt |-> FALSE,
+        actualCalls |-> 1,
+        everConsumed |-> TRUE,
+        recoveryCalls |-> 0 ] ]
+/\ decision = "NONE"
+/\ compared = FALSE
+
+State 6: <Compare line 51, col 12 to line 52, col 64 of module ep_replay_history_twoworld>
+/\ worlds = [ H0 |->
+      [ phase |-> "RECOVERED",
+        log |-> FALSE,
+        checkpoint |-> FALSE,
+        dispatch |-> FALSE,
+        terminal |-> FALSE,
+        frontier |-> 0,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "INCOMPLETE",
+        continuity |-> FALSE,
+        receipt |-> FALSE,
+        actualCalls |-> 0,
+        everConsumed |-> FALSE,
+        recoveryCalls |-> 0 ],
+  H1 |->
+      [ phase |-> "RECOVERED",
+        log |-> FALSE,
+        checkpoint |-> FALSE,
+        dispatch |-> FALSE,
+        terminal |-> FALSE,
+        frontier |-> 0,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "INCOMPLETE",
+        continuity |-> FALSE,
+        receipt |-> FALSE,
+        actualCalls |-> 1,
+        everConsumed |-> TRUE,
+        recoveryCalls |-> 0 ] ]
+/\ decision = "NONE"
+/\ compared = TRUE
+
+State 7: <Decide line 56, col 3 to line 64, col 23 of module ep_replay_history_twoworld>
+/\ worlds = [ H0 |->
+      [ phase |-> "RECOVERED",
+        log |-> FALSE,
+        checkpoint |-> FALSE,
+        dispatch |-> FALSE,
+        terminal |-> FALSE,
+        frontier |-> 0,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "INCOMPLETE",
+        continuity |-> FALSE,
+        receipt |-> FALSE,
+        actualCalls |-> 1,
+        everConsumed |-> FALSE,
+        recoveryCalls |-> 1 ],
+  H1 |->
+      [ phase |-> "RECOVERED",
+        log |-> FALSE,
+        checkpoint |-> FALSE,
+        dispatch |-> FALSE,
+        terminal |-> FALSE,
+        frontier |-> 0,
+        anchorFrontier |-> 0,
+        anchorRoot |-> "EMPTY",
+        archive |-> "EMPTY",
+        anchorState |-> "CURRENT",
+        highWater |-> 0,
+        coverage |-> "INCOMPLETE",
+        continuity |-> FALSE,
+        receipt |-> FALSE,
+        actualCalls |-> 2,
+        everConsumed |-> TRUE,
+        recoveryCalls |-> 1 ] ]
+/\ decision = "ADMIT"
+/\ compared = TRUE
+
+13 states generated, 10 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 7.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-10-27 20:39:06)

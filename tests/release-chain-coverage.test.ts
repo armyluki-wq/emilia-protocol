@@ -38,13 +38,13 @@ describe('release-chain coverage', () => {
     const helper = readFileSync('scripts/pin-action-shas.ts', 'utf8');
     for (const [tag, pinned] of Object.entries({
       'actions/checkout@v7': 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1',
-      'actions/setup-node@v7': 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0',
+      'actions/setup-node@v7': 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0',
       'actions/setup-python@v7': 'actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0',
-      'actions/upload-artifact@v7': 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1',
-      'actions/setup-java@v6': 'actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1',
+      'actions/upload-artifact@v7': 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2',
+      'actions/setup-java@v6': 'actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0',
       'actions/attest@v4': 'actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6  # v4.2.2',
-      'github/codeql-action/init@v4': 'github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd  # v4.37.7',
-      'pypa/gh-action-pypi-publish@release/v1': 'pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2',
+      'github/codeql-action/init@v4': 'github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee  # v4.39.0',
+      'pypa/gh-action-pypi-publish@release/v1': 'pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086  # v1.14.3',
     })) {
       expect(helper).toContain(`'${tag}'`);
       expect(helper).toContain(`'${pinned}'`);
@@ -53,9 +53,9 @@ describe('release-chain coverage', () => {
 
     const expectedRefs = {
       'actions/checkout': '3d3c42e5aac5ba805825da76410c181273ba90b1',
-      'actions/setup-java': 'de7274f081f381c8f8158605e0321c36c376e2e6',
+      'actions/setup-java': 'b843ebf9b913146b38da2eaa7aeddf76074ae1ad',
       'actions/attest': '1e69f48acb82d1966a394da916b4c1698aa569d6',
-      'pypa/gh-action-pypi-publish': 'dc37677b2e1c63e2034f94d8a5b11f265b73ba33',
+      'pypa/gh-action-pypi-publish': '7245906fb61fa33a13554f9d5fb856fe61758086',
     };
     const workflows = readdirSync('.github/workflows')
       .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
@@ -305,8 +305,8 @@ describe('release-chain coverage', () => {
       'actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803',
     ))).toThrow(/checkout action/);
     expect(() => validateReusableNpmWorkflowText(npm.replace(
+      'actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad',
       'actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6',
-      'actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95',
     ))).toThrow(/TLA\+ execution guard/);
     expect(() => validateReusableNpmWorkflowText(npm.replace(
       'actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6',
@@ -315,8 +315,8 @@ describe('release-chain coverage', () => {
 
     const pypi = readFileSync('.github/workflows/_publish-pypi-package.yml', 'utf8');
     expect(() => validateReusablePypiWorkflowText(pypi.replace(
+      'pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086',
       'pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33',
-      'pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247',
     ))).toThrow(/release controls/);
   });
 

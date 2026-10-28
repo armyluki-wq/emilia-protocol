@@ -1,0 +1,142 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 130 and seed 838256116584442490 with 1 worker on 18 cores with 491MB heap and 64MB offheap memory [pid: 25754] (Mac OS X 27.0.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/imanschrock/Documents/GitHub.nosync/emilia-issue906-two-world-20261027/formal/ep_replay_history.tla
+Parsing file /private/var/folders/qd/sgs5gg_56ll79z_2rxfg3pn00000gn/T/Naturals.tla
+Parsing file /private/var/folders/qd/sgs5gg_56ll79z_2rxfg3pn00000gn/T/Sequences.tla
+Parsing file /private/var/folders/qd/sgs5gg_56ll79z_2rxfg3pn00000gn/T/TLC.tla
+Parsing file /private/var/folders/qd/sgs5gg_56ll79z_2rxfg3pn00000gn/T/FiniteSets.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module ep_replay_history
+Starting... (2026-10-27 20:39:17)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-27 20:39:17.
+Error: Invariant AtMostOnce is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+s = [ log |-> <<>>,
+  checkpoint |-> <<>>,
+  anchor |-> <<>>,
+  archive |-> <<>>,
+  frontier |-> 0,
+  highWater |-> 0,
+  coverage |-> "COMPLETE",
+  anchorState |-> "CURRENT",
+  continuity |-> TRUE,
+  receipt |-> 0,
+  linearized |-> {},
+  entries |-> <<>>,
+  dispatch |-> FALSE,
+  terminal |-> FALSE,
+  faults |-> {} ]
+
+State 2: <ConsumeLinearized line 23, col 3 to line 26, col 64 of module ep_replay_history>
+s = [ log |-> <<"identity">>,
+  checkpoint |-> <<"identity">>,
+  anchor |-> <<>>,
+  archive |-> <<>>,
+  frontier |-> 1,
+  highWater |-> 0,
+  coverage |-> "COMPLETE",
+  anchorState |-> "CURRENT",
+  continuity |-> TRUE,
+  receipt |-> 1,
+  linearized |-> {1},
+  entries |-> <<>>,
+  dispatch |-> FALSE,
+  terminal |-> FALSE,
+  faults |-> {} ]
+
+State 3: <ProviderEntry line 28, col 3 to line 32, col 40 of module ep_replay_history>
+s = [ log |-> <<"identity">>,
+  checkpoint |-> <<"identity">>,
+  anchor |-> <<>>,
+  archive |-> <<>>,
+  frontier |-> 1,
+  highWater |-> 0,
+  coverage |-> "COMPLETE",
+  anchorState |-> "CURRENT",
+  continuity |-> TRUE,
+  receipt |-> 0,
+  linearized |-> {1},
+  entries |-> <<[consume |-> 1, seq |-> 1, complete |-> TRUE, anchored |-> 0]>>,
+  dispatch |-> TRUE,
+  terminal |-> FALSE,
+  faults |-> {} ]
+
+State 4: <CheckpointAnchored line 34, col 3 to line 36, col 82 of module ep_replay_history>
+s = [ log |-> <<"identity">>,
+  checkpoint |-> <<"identity">>,
+  anchor |-> <<"identity">>,
+  archive |-> <<"identity">>,
+  frontier |-> 1,
+  highWater |-> 1,
+  coverage |-> "COMPLETE",
+  anchorState |-> "CURRENT",
+  continuity |-> TRUE,
+  receipt |-> 0,
+  linearized |-> {1},
+  entries |-> <<[consume |-> 1, seq |-> 1, complete |-> TRUE, anchored |-> 0]>>,
+  dispatch |-> TRUE,
+  terminal |-> FALSE,
+  faults |-> {} ]
+
+State 5: <UnsafeAllowRolledBackAnchor line 93, col 3 to line 99, col 46 of module ep_replay_history>
+s = [ log |-> <<>>,
+  checkpoint |-> <<>>,
+  anchor |-> <<>>,
+  archive |-> <<>>,
+  frontier |-> 0,
+  highWater |-> 0,
+  coverage |-> "COMPLETE",
+  anchorState |-> "CURRENT",
+  continuity |-> TRUE,
+  receipt |-> 0,
+  linearized |-> {1},
+  entries |-> <<[consume |-> 1, seq |-> 1, complete |-> TRUE, anchored |-> 0]>>,
+  dispatch |-> TRUE,
+  terminal |-> FALSE,
+  faults |-> {"AcceptedOldAnchor"} ]
+
+State 6: <ConsumeLinearized line 23, col 3 to line 26, col 64 of module ep_replay_history>
+s = [ log |-> <<"identity">>,
+  checkpoint |-> <<"identity">>,
+  anchor |-> <<>>,
+  archive |-> <<>>,
+  frontier |-> 1,
+  highWater |-> 0,
+  coverage |-> "COMPLETE",
+  anchorState |-> "CURRENT",
+  continuity |-> TRUE,
+  receipt |-> 1,
+  linearized |-> {1, 2},
+  entries |-> <<[consume |-> 1, seq |-> 1, complete |-> TRUE, anchored |-> 0]>>,
+  dispatch |-> TRUE,
+  terminal |-> FALSE,
+  faults |-> {"AcceptedOldAnchor"} ]
+
+State 7: <ProviderEntry line 28, col 3 to line 32, col 40 of module ep_replay_history>
+s = [ log |-> <<"identity">>,
+  checkpoint |-> <<"identity">>,
+  anchor |-> <<>>,
+  archive |-> <<>>,
+  frontier |-> 1,
+  highWater |-> 0,
+  coverage |-> "COMPLETE",
+  anchorState |-> "CURRENT",
+  continuity |-> TRUE,
+  receipt |-> 0,
+  linearized |-> {1, 2},
+  entries |->
+      << [consume |-> 1, seq |-> 1, complete |-> TRUE, anchored |-> 0],
+         [consume |-> 2, seq |-> 1, complete |-> TRUE, anchored |-> 0] >>,
+  dispatch |-> TRUE,
+  terminal |-> FALSE,
+  faults |-> {"AcceptedOldAnchor"} ]
+
+3796 states generated, 1619 distinct states found, 995 states left on queue.
+The depth of the complete state graph search is 7.
+The average outdegree of the complete state graph is 3 (minimum is 0, the maximum 11 and the 95th percentile is 8).
+Finished in 00s at (2026-10-27 20:39:17)

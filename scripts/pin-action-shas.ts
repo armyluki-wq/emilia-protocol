@@ -5,7 +5,7 @@
  * One-shot migration: replaces version-tagged GitHub Action references
  * with commit SHA pins across all .github/workflows/*.yml files.
  *
- * SHA pins verified against upstream tags on 2026-08-31. Re-run after
+ * SHA pins verified against upstream tags on 2026-10-27. Re-run after
  * Dependabot updates the SHAs.
  */
 
@@ -24,23 +24,23 @@ const PINS: { [key: string]: string } = {
   'actions/checkout@v7':
     'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1',
   'actions/setup-node@v7':
-    'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0',
+    'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0',
   'actions/setup-python@v7':
     'actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0',
   'actions/upload-artifact@v7':
-    'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1',
+    'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2',
   'actions/setup-java@v6':
-    'actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1',
+    'actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0',
   'actions/attest@v4':
     'actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6  # v4.2.2',
 
   // ── CodeQL ───────────────────────────────────────────────────────────────
   'github/codeql-action/init@v4':
-    'github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd  # v4.37.7',
+    'github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee  # v4.39.0',
   'github/codeql-action/analyze@v4':
-    'github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd  # v4.37.7',
+    'github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee  # v4.39.0',
   'github/codeql-action/autobuild@v4':
-    'github/codeql-action/autobuild@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd  # v4.37.7',
+    'github/codeql-action/autobuild@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee  # v4.39.0',
 
   // ── Security / compliance ─────────────────────────────────────────────────
   'gitleaks/gitleaks-action@v2':
@@ -50,7 +50,7 @@ const PINS: { [key: string]: string } = {
 
   // ── Python packaging ─────────────────────────────────────────────────────
   'pypa/gh-action-pypi-publish@release/v1':
-    'pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2',
+    'pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086  # v1.14.3',
 };
 
 // ── Process each workflow file ────────────────────────────────────────────────

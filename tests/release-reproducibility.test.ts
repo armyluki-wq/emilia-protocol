@@ -604,7 +604,7 @@ describe('release byte reproducibility', () => {
     expect(workflow).toContain('packages-dir: release-artifacts/python-verify/');
     expect(workflow).toContain('actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6');
     expect(workflow).toContain(
-      'pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33',
+      'pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086',
     );
     expect(workflow).toContain('cmp "${{ steps.build.outputs.wheel }}" "$REGISTRY_WHEEL"');
     expect(workflow).toContain('cmp "${{ steps.build.outputs.sdist }}" "$REGISTRY_SDIST"');
